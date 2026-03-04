@@ -1,0 +1,22 @@
+---
+/**
+ * Drop-in component that initialises the analytics and feature-flag clients
+ * on every page. Include this in your base layout.
+ *
+ * The actual tracking mode (cookieless vs. full) is determined by the user's
+ * consent state — see src/lib/analytics.ts for details.
+ */
+---
+
+<script>
+  import { initAnalytics } from "../lib/analytics";
+  import { initFeatureFlags } from "../lib/feature-flags";
+
+  // Initialise analytics (PostHog) in privacy-safe mode.
+  initAnalytics();
+
+  // Initialise feature flags (Unleash) — non-blocking.
+  initFeatureFlags().catch((err) =>
+    console.error("[analytics] Failed to initialise feature flags:", err),
+  );
+</script>

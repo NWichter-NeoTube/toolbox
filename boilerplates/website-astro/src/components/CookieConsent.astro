@@ -1,0 +1,409 @@
+---
+/**
+ * DSGVO/GDPR-compliant cookie consent banner.
+ *
+ * Behaviour:
+ *  - On first visit the banner is shown at the bottom of the viewport.
+ *  - "Accept All" — grants full analytics & error-tracking consent.
+ *  - "Only Essential" — denies consent; analytics stays cookieless.
+ *  - "Settings" — expands a panel where the user can toggle analytics and
+ *    error tracking independently.
+ *  - The preference is persisted in localStorage ("toolbox_consent" and
+ *    "toolbox_consent_details").
+ *  - The banner does NOT appear again until the user clears storage or the
+ *    consent state is reset.
+ */
+---
+
+<div
+  id="cookie-consent"
+  class="cc-wrapper"
+  role="dialog"
+  aria-label="Cookie consent"
+  aria-modal="false"
+  hidden
+>
+  <div class="cc-container">
+    <!-- Main banner -->
+    <div id="cc-banner" class="cc-banner">
+      <div class="cc-text">
+        <p>
+          We use cookies and similar technologies to improve your experience and
+          analyse site usage. You can accept all cookies, choose only essential
+          ones, or customise your preferences.
+        </p>
+      </div>
+      <div class="cc-actions">
+        <button id="cc-accept" class="cc-btn cc-btn--primary" type="button">
+          Accept All
+        </button>
+        <button id="cc-reject" class="cc-btn cc-btn--secondary" type="button">
+          Only Essential
+        </button>
+        <button id="cc-settings-toggle" class="cc-btn cc-btn--link" type="button">
+          Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- Granular settings panel (hidden by default) -->
+    <div id="cc-settings" class="cc-settings" hidden>
+      <h3 class="cc-settings__title">Cookie Settings</h3>
+
+      <div class="cc-settings__group">
+        <label class="cc-toggle">
+          <input type="checkbox" disabled checked />
+          <span class="cc-toggle__label">
+            <strong>Essential</strong>
+            <small>Required for the website to function. Cannot be disabled.</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="cc-settings__group">
+        <label class="cc-toggle">
+          <input type="checkbox" id="cc-opt-analytics" />
+          <span class="cc-toggle__label">
+            <strong>Analytics</strong>
+            <small>Helps us understand how visitors interact with the site (PostHog).</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="cc-settings__group">
+        <label class="cc-toggle">
+          <input type="checkbox" id="cc-opt-errors" />
+          <span class="cc-toggle__label">
+            <strong>Error Tracking</strong>
+            <small>Sends detailed error reports to help us fix bugs faster (Sentry).</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="cc-actions">
+        <button id="cc-save" class="cc-btn cc-btn--primary" type="button">
+          Save Preferences
+        </button>
+        <button id="cc-back" class="cc-btn cc-btn--link" type="button">
+          Back
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* ------------------------------------------------------------------ */
+  /* Cookie Consent – self-contained styles                             */
+  /* ------------------------------------------------------------------ */
+
+  .cc-wrapper {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+    pointer-events: none;
+  }
+
+  .cc-wrapper[hidden] {
+    display: none;
+  }
+
+  .cc-container {
+    pointer-events: auto;
+    width: 100%;
+    max-width: 48rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    box-shadow: 0 -4px 24px rgb(0 0 0 / 0.08);
+    padding: 1.25rem 1.5rem;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 0.9rem;
+    color: #1a202c;
+    line-height: 1.5;
+  }
+
+  /* Banner --------------------------------------------------------------- */
+
+  .cc-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .cc-text p {
+    margin: 0;
+  }
+
+  .cc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Buttons -------------------------------------------------------------- */
+
+  .cc-btn {
+    cursor: pointer;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.55rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .cc-btn--primary {
+    background: #2563eb;
+    color: #fff;
+  }
+
+  .cc-btn--primary:hover {
+    background: #1d4ed8;
+  }
+
+  .cc-btn--secondary {
+    background: #f1f5f9;
+    color: #334155;
+  }
+
+  .cc-btn--secondary:hover {
+    background: #e2e8f0;
+  }
+
+  .cc-btn--link {
+    background: none;
+    color: #2563eb;
+    padding-inline: 0.5rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .cc-btn--link:hover {
+    color: #1d4ed8;
+  }
+
+  /* Settings panel ------------------------------------------------------- */
+
+  .cc-settings[hidden] {
+    display: none;
+  }
+
+  .cc-settings__title {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+  }
+
+  .cc-settings__group {
+    padding: 0.5rem 0;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  /* Toggle --------------------------------------------------------------- */
+
+  .cc-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+  }
+
+  .cc-toggle input[type="checkbox"] {
+    margin-top: 0.25rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: #2563eb;
+  }
+
+  .cc-toggle__label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .cc-toggle__label small {
+    color: #64748b;
+    font-size: 0.8rem;
+  }
+
+  /* Responsive ----------------------------------------------------------- */
+
+  @media (min-width: 640px) {
+    .cc-banner {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .cc-text {
+      flex: 1;
+    }
+  }
+
+  /* Reduced motion ------------------------------------------------------- */
+
+  @media (prefers-reduced-motion: reduce) {
+    .cc-btn {
+      transition: none;
+    }
+  }
+
+  /* Dark-mode support ---------------------------------------------------- */
+
+  @media (prefers-color-scheme: dark) {
+    .cc-container {
+      background: #1e293b;
+      border-color: #334155;
+      color: #e2e8f0;
+      box-shadow: 0 -4px 24px rgb(0 0 0 / 0.3);
+    }
+
+    .cc-btn--secondary {
+      background: #334155;
+      color: #e2e8f0;
+    }
+
+    .cc-btn--secondary:hover {
+      background: #475569;
+    }
+
+    .cc-settings__group {
+      border-color: #334155;
+    }
+
+    .cc-toggle__label small {
+      color: #94a3b8;
+    }
+  }
+</style>
+
+<script>
+  import { grantConsent, revokeConsent, hasConsent } from "../lib/analytics";
+
+  const DETAILS_KEY = "toolbox_consent_details";
+
+  interface ConsentDetails {
+    analytics: boolean;
+    errors: boolean;
+  }
+
+  // -----------------------------------------------------------------------
+  // DOM references
+  // -----------------------------------------------------------------------
+
+  const wrapper = document.getElementById("cookie-consent")!;
+  const banner = document.getElementById("cc-banner")!;
+  const settings = document.getElementById("cc-settings")!;
+
+  const btnAccept = document.getElementById("cc-accept")!;
+  const btnReject = document.getElementById("cc-reject")!;
+  const btnSettingsToggle = document.getElementById("cc-settings-toggle")!;
+  const btnSave = document.getElementById("cc-save")!;
+  const btnBack = document.getElementById("cc-back")!;
+
+  const optAnalytics = document.getElementById("cc-opt-analytics") as HTMLInputElement;
+  const optErrors = document.getElementById("cc-opt-errors") as HTMLInputElement;
+
+  // -----------------------------------------------------------------------
+  // Helpers
+  // -----------------------------------------------------------------------
+
+  function readDetails(): ConsentDetails | null {
+    try {
+      const raw = localStorage.getItem(DETAILS_KEY);
+      return raw ? (JSON.parse(raw) as ConsentDetails) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeDetails(details: ConsentDetails): void {
+    try {
+      localStorage.setItem(DETAILS_KEY, JSON.stringify(details));
+    } catch {
+      // Ignore.
+    }
+  }
+
+  function hideBanner(): void {
+    wrapper.hidden = true;
+    wrapper.setAttribute("aria-hidden", "true");
+  }
+
+  function showBanner(): void {
+    wrapper.hidden = false;
+    wrapper.removeAttribute("aria-hidden");
+  }
+
+  function showSettings(): void {
+    banner.hidden = true;
+    settings.hidden = false;
+  }
+
+  function showMain(): void {
+    banner.hidden = false;
+    settings.hidden = true;
+  }
+
+  function applyConsent(details: ConsentDetails): void {
+    writeDetails(details);
+
+    if (details.analytics) {
+      grantConsent();
+    } else {
+      revokeConsent();
+    }
+
+    // Error tracking consent is handled reactively via the "toolbox:consent"
+    // event dispatched by grantConsent / revokeConsent. The Sentry module
+    // listens for this event and adjusts PII handling accordingly.
+
+    hideBanner();
+  }
+
+  // -----------------------------------------------------------------------
+  // Initialisation
+  // -----------------------------------------------------------------------
+
+  // Only show the banner if no decision has been made yet.
+  const existing = readDetails();
+  if (existing === null && !hasConsent()) {
+    showBanner();
+  }
+
+  // Pre-fill settings checkboxes from any prior selection.
+  if (existing) {
+    optAnalytics.checked = existing.analytics;
+    optErrors.checked = existing.errors;
+  }
+
+  // -----------------------------------------------------------------------
+  // Event listeners
+  // -----------------------------------------------------------------------
+
+  btnAccept.addEventListener("click", () => {
+    applyConsent({ analytics: true, errors: true });
+  });
+
+  btnReject.addEventListener("click", () => {
+    applyConsent({ analytics: false, errors: false });
+  });
+
+  btnSettingsToggle.addEventListener("click", () => {
+    showSettings();
+  });
+
+  btnBack.addEventListener("click", () => {
+    showMain();
+  });
+
+  btnSave.addEventListener("click", () => {
+    applyConsent({
+      analytics: optAnalytics.checked,
+      errors: optErrors.checked,
+    });
+  });
+</script>

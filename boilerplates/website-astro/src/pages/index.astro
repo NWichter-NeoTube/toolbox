@@ -1,0 +1,124 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Home | Toolbox" description="Welcome to the Toolbox website boilerplate.">
+  <main class="page">
+    <section class="hero">
+      <h1>Toolbox Website</h1>
+      <p class="hero__subtitle">
+        An Astro boilerplate with self-hosted analytics, error tracking, feature
+        flags, and DSGVO/GDPR-compliant cookie consent &mdash; ready to deploy.
+      </p>
+    </section>
+
+    <section class="features">
+      <h2>Stack</h2>
+      <ul class="features__list">
+        <li><strong>Astro</strong> &mdash; static site generation</li>
+        <li><strong>PostHog</strong> &mdash; privacy-aware analytics (self-hosted)</li>
+        <li><strong>Sentry</strong> &mdash; error tracking (self-hosted)</li>
+        <li><strong>Unleash</strong> &mdash; feature flags (self-hosted)</li>
+      </ul>
+    </section>
+
+    <!-- Feature flag example -------------------------------------------- -->
+    <section class="ff-demo" id="ff-demo">
+      <h2>Feature Flag Demo</h2>
+      <p id="ff-status" class="ff-demo__status">
+        Checking feature flag <code>example-feature</code>&hellip;
+      </p>
+    </section>
+  </main>
+</BaseLayout>
+
+<script>
+  import { initFeatureFlags, isEnabled } from "../lib/feature-flags";
+
+  async function renderFlagDemo() {
+    const el = document.getElementById("ff-status");
+    if (!el) return;
+
+    await initFeatureFlags();
+    const enabled = isEnabled("example-feature");
+
+    el.textContent = enabled
+      ? "The \"example-feature\" flag is ENABLED."
+      : "The \"example-feature\" flag is disabled (or Unleash is not configured).";
+  }
+
+  renderFlagDemo();
+</script>
+
+<style>
+  .page {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  .hero {
+    margin-bottom: 3rem;
+  }
+
+  .hero h1 {
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.75rem;
+  }
+
+  .hero__subtitle {
+    font-size: 1.125rem;
+    color: #475569;
+    max-width: 36rem;
+  }
+
+  .features {
+    margin-bottom: 3rem;
+  }
+
+  .features h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .features__list {
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .ff-demo {
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+  }
+
+  .ff-demo h2 {
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .ff-demo__status code {
+    background: #f1f5f9;
+    padding: 0.15em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .hero__subtitle {
+      color: #94a3b8;
+    }
+
+    .ff-demo {
+      border-color: #334155;
+    }
+
+    .ff-demo__status code {
+      background: #1e293b;
+    }
+  }
+</style>
