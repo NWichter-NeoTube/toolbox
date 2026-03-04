@@ -1,0 +1,56 @@
+# Search & AI: Meilisearch, Qdrant
+
+services:
+  # ───────────────────────────────────────────────
+  # Meilisearch (full-text search)
+  # ───────────────────────────────────────────────
+  meilisearch:
+    image: getmeili/meilisearch:v1.9
+    container_name: toolbox-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:?MEILISEARCH_MASTER_KEY is required}
+      MEILI_ENV: production
+      MEILI_DB_PATH: /meili_data
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meilisearch_data:/meili_data
+    networks:
+      - toolbox
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7700/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ───────────────────────────────────────────────
+  # Qdrant (vector database)
+  # ───────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.10.1
+    container_name: toolbox-qdrant
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?QDRANT_API_KEY is required}
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - toolbox
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  meilisearch_data:
+    name: toolbox_meilisearch_data
+  qdrant_data:
+    name: toolbox_qdrant_data
+
+networks:
+  toolbox:
+    external: true
+    name: toolbox

@@ -1,0 +1,32 @@
+# Feature Flags: Unleash
+
+services:
+  unleash:
+    image: unleashorg/unleash-server:latest
+    container_name: toolbox-unleash
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-toolbox}:${POSTGRES_PASSWORD}@postgres:5432/unleash
+      DATABASE_SSL: "false"
+      UNLEASH_URL: ${UNLEASH_URL:-https://unleash.example.com}
+      # Initial admin token for API access
+      INIT_ADMIN_API_TOKENS: ${UNLEASH_ADMIN_TOKEN:?UNLEASH_ADMIN_TOKEN is required}
+      # Disable public signup
+      AUTH_ENABLE_API_TOKEN: "true"
+      LOG_LEVEL: warn
+    networks:
+      - toolbox
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4242/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  toolbox:
+    external: true
+    name: toolbox
