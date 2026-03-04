@@ -1,0 +1,37 @@
+name: toolbox_mobile
+description: Self-hosted SaaS toolbox mobile app with DSGVO/GDPR-compliant consent flow.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Analytics — self-hosted PostHog
+  posthog_flutter: ^4.0.0
+
+  # Error tracking — self-hosted Sentry
+  sentry_flutter: ^7.0.0
+
+  # Feature flags — self-hosted Unleash
+  unleash_proxy_client_flutter: ^1.0.0
+
+  # Local storage for consent preferences
+  shared_preferences: ^2.2.0
+
+  # State management
+  provider: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
