@@ -1,0 +1,22 @@
+# Environment files with real secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker volumes (if accidentally created locally)
+data/
+
+# Temp files
+*.tmp
+*.bak
+*.log
