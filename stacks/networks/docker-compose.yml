@@ -1,0 +1,14 @@
+# Shared network declarations for the entire stack.
+# All compose files reference this external network so services can communicate.
+#
+# Create the network before starting any stack:
+#   docker network create toolbox
+#
+# Coolify note: When deploying via Coolify, ensure the "toolbox" network
+# is created on the host and each Coolify application is configured to
+# attach to it (via Coolify UI or API: networks -> external).
+
+networks:
+  toolbox:
+    external: true
+    name: toolbox
