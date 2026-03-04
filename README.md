@@ -175,6 +175,7 @@ Start with the [Architecture Overview](docs/00-overview.md), then follow the num
 | [12-environments](docs/12-environments.md) | Dev, staging, and production environment setup |
 | [13-voice-interface](docs/13-voice-interface.md) | Customer conversation transcription and analysis |
 | [14-tools-overview](docs/14-tools-overview.md) | Overview of all tools and which ones to use when |
+| [15-extended-tools](docs/15-extended-tools.md) | Authentik, Alloy, Restic, n8n, Trivy, OpenTelemetry, Plausible — vollständige Referenz |
 
 ## License
 
