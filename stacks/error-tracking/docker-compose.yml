@@ -1,0 +1,204 @@
+# Error Tracking: Sentry (self-hosted)
+# Sentry requires Postgres, Redis (from 10-core-data), plus its own
+# Kafka, ClickHouse/Snuba, and several worker processes.
+#
+# NOTE: Sentry self-hosted is complex. This compose uses Sentry's
+# official recommended approach with their Docker images.
+# For initial setup, run: docker exec toolbox-sentry sentry upgrade
+
+services:
+  # ───────────────────────────────────────────────
+  # Sentry Kafka (separate from PostHog's Kafka)
+  # ───────────────────────────────────────────────
+  sentry-kafka:
+    image: bitnami/kafka:3.7
+    container_name: toolbox-sentry-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@sentry-kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://sentry-kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - sentry_kafka_data:/bitnami/kafka
+    networks:
+      - toolbox
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ───────────────────────────────────────────────
+  # Sentry ClickHouse
+  # ───────────────────────────────────────────────
+  sentry-clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: toolbox-sentry-clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: sentry_local
+      CLICKHOUSE_USER: ${SENTRY_CLICKHOUSE_USER:-sentry}
+      CLICKHOUSE_PASSWORD: ${SENTRY_CLICKHOUSE_PASSWORD:?SENTRY_CLICKHOUSE_PASSWORD is required}
+    volumes:
+      - sentry_clickhouse_data:/var/lib/clickhouse
+    networks:
+      - toolbox
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ───────────────────────────────────────────────
+  # Snuba (Sentry's ClickHouse query layer)
+  # ───────────────────────────────────────────────
+  sentry-snuba-api:
+    image: getsentry/snuba:latest
+    container_name: toolbox-sentry-snuba-api
+    restart: unless-stopped
+    environment: &snuba-env
+      SNUBA_SETTINGS: docker
+      CLICKHOUSE_HOST: sentry-clickhouse
+      CLICKHOUSE_PORT: 9000
+      DEFAULT_BROKERS: sentry-kafka:9092
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: 2
+    command: api
+    networks:
+      - toolbox
+    depends_on:
+      sentry-clickhouse:
+        condition: service_healthy
+      sentry-kafka:
+        condition: service_healthy
+
+  sentry-snuba-consumer:
+    image: getsentry/snuba:latest
+    container_name: toolbox-sentry-snuba-consumer
+    restart: unless-stopped
+    environment: *snuba-env
+    command: consumer --storage errors --auto-offset-reset=latest --max-batch-time-ms 750
+    networks:
+      - toolbox
+    depends_on:
+      sentry-clickhouse:
+        condition: service_healthy
+      sentry-kafka:
+        condition: service_healthy
+
+  sentry-snuba-outcomes-consumer:
+    image: getsentry/snuba:latest
+    container_name: toolbox-sentry-snuba-outcomes
+    restart: unless-stopped
+    environment: *snuba-env
+    command: consumer --storage outcomes_raw --auto-offset-reset=earliest --max-batch-time-ms 750
+    networks:
+      - toolbox
+    depends_on:
+      sentry-clickhouse:
+        condition: service_healthy
+      sentry-kafka:
+        condition: service_healthy
+
+  sentry-snuba-replacer:
+    image: getsentry/snuba:latest
+    container_name: toolbox-sentry-snuba-replacer
+    restart: unless-stopped
+    environment: *snuba-env
+    command: replacer --storage errors --auto-offset-reset=latest --max-batch-size 3
+    networks:
+      - toolbox
+    depends_on:
+      sentry-clickhouse:
+        condition: service_healthy
+      sentry-kafka:
+        condition: service_healthy
+
+  # ───────────────────────────────────────────────
+  # Sentry Web
+  # ───────────────────────────────────────────────
+  sentry:
+    image: getsentry/sentry:latest
+    container_name: toolbox-sentry
+    restart: unless-stopped
+    environment: &sentry-env
+      SENTRY_SECRET_KEY: ${SENTRY_SECRET_KEY:?SENTRY_SECRET_KEY is required}
+      SENTRY_POSTGRES_HOST: postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: ${POSTGRES_USER:-toolbox}
+      SENTRY_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      SENTRY_REDIS_HOST: redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SENTRY_REDIS_DB: 2
+      SNUBA: http://sentry-snuba-api:1218
+      SENTRY_EVENT_RETENTION_DAYS: 90
+      SENTRY_SINGLE_ORGANIZATION: "true"
+      SENTRY_FEATURES_ORGANIZATIONS_AUTOCREATE: "false"
+      KAFKA_CLUSTERS: '{"default":{"common":{"bootstrap.servers":"sentry-kafka:9092"}}}'
+    networks:
+      - toolbox
+    depends_on:
+      sentry-snuba-api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9000/_health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # ───────────────────────────────────────────────
+  # Sentry Worker
+  # ───────────────────────────────────────────────
+  sentry-worker:
+    image: getsentry/sentry:latest
+    container_name: toolbox-sentry-worker
+    restart: unless-stopped
+    command: run worker
+    environment: *sentry-env
+    networks:
+      - toolbox
+    depends_on:
+      sentry:
+        condition: service_healthy
+
+  # ───────────────────────────────────────────────
+  # Sentry Cron
+  # ───────────────────────────────────────────────
+  sentry-cron:
+    image: getsentry/sentry:latest
+    container_name: toolbox-sentry-cron
+    restart: unless-stopped
+    command: run cron
+    environment: *sentry-env
+    networks:
+      - toolbox
+    depends_on:
+      sentry:
+        condition: service_healthy
+
+volumes:
+  sentry_kafka_data:
+    name: toolbox_sentry_kafka_data
+  sentry_clickhouse_data:
+    name: toolbox_sentry_clickhouse_data
+
+networks:
+  toolbox:
+    external: true
+    name: toolbox
