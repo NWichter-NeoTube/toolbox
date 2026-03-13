@@ -1,0 +1,2 @@
+{"timestamp":"2026-03-08T22:58:15.055460Z","five_hour_pct":0.0,"five_hour_resets":null,"seven_day_pct":0.0,"seven_day_resets":null,"opus_pct":0.0,"opus_resets":null,"error":"Token refresh failed (HTTP 302). Run 'claude /login' to re-authenticate."}
+{"timestamp":"2026-03-08T23:00:29.033024Z","five_hour_pct":0.0,"five_hour_resets":null,"seven_day_pct":0.0,"seven_day_resets":null,"opus_pct":0.0,"opus_resets":null,"error":"Token refresh failed: Refresh token not found or invalid\nRun 'claude /login' in a terminal to re-authenticate."}

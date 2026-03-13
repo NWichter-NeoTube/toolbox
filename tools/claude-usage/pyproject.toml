@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-usage"
+version = "0.1.0"
+description = "Monitor Claude subscription usage (5-hour session + weekly limits) with periodic logging."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Toolbox Team" }]
+dependencies = [
+    "httpx>=0.27.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "rich>=13.7.0",
+    "click>=8.1.0",
+    "schedule>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.3.0",
+]
+
+[project.scripts]
+claude-usage = "claude_usage.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["claude_usage*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
