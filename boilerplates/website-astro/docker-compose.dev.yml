@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - "4321:4321"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: bun run dev
+    env_file: .env
