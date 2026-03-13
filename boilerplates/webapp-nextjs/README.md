@@ -1,6 +1,6 @@
 # Toolbox Web App (Next.js)
 
-Web application boilerplate built on Next.js 14+ with self-hosted PostHog analytics, Sentry error tracking, Unleash feature flags, and a DSGVO/GDPR-compliant cookie consent flow.
+Web application boilerplate built on Next.js 14+ with Umami analytics, GlitchTip error tracking (Sentry-compatible), ENV-based feature flags, and a DSGVO/GDPR-compliant cookie consent flow.
 
 ## Quick Start
 
@@ -33,26 +33,24 @@ Copy `.env.example` to `.env` and fill in your values. Variables prefixed with `
 
 | Variable                          | Description                                     |
 | --------------------------------- | ----------------------------------------------- |
-| `NEXT_PUBLIC_POSTHOG_KEY`         | PostHog project API key                         |
-| `NEXT_PUBLIC_POSTHOG_HOST`        | PostHog instance URL                            |
-| `POSTHOG_API_KEY`                 | PostHog personal API key (server-side)           |
-| `NEXT_PUBLIC_SENTRY_DSN`          | Sentry DSN                                      |
-| `SENTRY_AUTH_TOKEN`               | Sentry auth token (source map uploads)           |
-| `NEXT_PUBLIC_UNLEASH_URL`         | Unleash front-end API / proxy URL               |
-| `NEXT_PUBLIC_UNLEASH_CLIENT_KEY`  | Unleash front-end API token                     |
-| `UNLEASH_SERVER_API_URL`          | Unleash server API URL (server-side evaluation)  |
-| `UNLEASH_SERVER_API_TOKEN`        | Unleash server API token                        |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID`    | Umami website ID                                |
+| `NEXT_PUBLIC_UMAMI_HOST`          | Umami instance URL                              |
+| `NEXT_PUBLIC_GLITCHTIP_DSN`       | GlitchTip DSN (Sentry-compatible)               |
+| `GLITCHTIP_AUTH_TOKEN`            | GlitchTip auth token (source map uploads)       |
+| `GLITCHTIP_ORG`                   | GlitchTip organisation slug                     |
+| `GLITCHTIP_PROJECT`               | GlitchTip project slug                          |
+| `NEXT_PUBLIC_FEATURE_*`           | Feature flags (e.g. `NEXT_PUBLIC_FEATURE_DARK_MODE=true`) |
 | `NEXT_PUBLIC_APP_URL`             | Canonical app URL                               |
 
 ## Cookie Consent Flow
 
 The boilerplate is designed to comply with DSGVO (German GDPR) out of the box:
 
-1. **First visit** -- PostHog starts in *cookieless* mode (`persistence: "memory"`, autocapture off). No cookies or localStorage entries are written. Sentry captures errors without PII.
-2. **User clicks "Accept All"** -- PostHog switches to full mode (cookies + localStorage, autocapture, session replay). Sentry enables PII and session replay. Preference is stored in `localStorage`.
-3. **User clicks "Only Essential"** -- Analytics stays cookieless. Preference is stored so the banner is not shown again.
+1. **First visit** -- Umami script is not loaded, no tracking occurs. GlitchTip captures errors without PII.
+2. **User clicks "Accept All"** -- Umami script is injected and begins tracking pageviews. GlitchTip enables PII collection. Preference is stored in `localStorage`.
+3. **User clicks "Only Essential"** -- No analytics tracking. Preference is stored so the banner is not shown again.
 4. **User opens "Settings"** -- Granular toggles for analytics and error tracking allow partial consent.
-5. **Consent revocation** -- Calling `revokeConsent()` clears all PostHog cookies/localStorage, switches back to memory mode, and notifies Sentry to strip PII.
+5. **Consent revocation** -- Calling `revokeConsent()` removes the Umami script and notifies GlitchTip to strip PII.
 
 ## Architecture
 
@@ -62,22 +60,21 @@ src/
     api/health/       Health check endpoint
   components/         React components (CookieConsent)
   lib/                Shared utilities
-    analytics.ts          Client-side PostHog (consent-aware)
-    analytics-server.ts   Server-side PostHog (posthog-node)
-    feature-flags.ts      Client-side Unleash
-    feature-flags-server.ts  Server-side Unleash
+    analytics.ts          Client-side Umami (consent-aware)
+    analytics-server.ts   Server-side Umami (HTTP API)
+    feature-flags.ts      ENV-based feature flags
   providers/          React context providers
-    AnalyticsProvider.tsx    PostHog + consent context
-    FeatureFlagProvider.tsx  Unleash context + hooks
+    AnalyticsProvider.tsx    Umami + consent context
+    FeatureFlagProvider.tsx  ENV flag context + hooks
 ```
 
 ## Toolbox Stack Integration
 
 This boilerplate is part of a self-hosted SaaS toolbox stack:
 
-- **PostHog** -- product analytics, session replay, A/B testing
-- **Sentry** -- error tracking, performance monitoring
-- **Unleash** -- feature flags, gradual rollouts
+- **Umami** -- privacy-friendly web analytics (no cookies)
+- **GlitchTip** -- error tracking, Sentry-compatible
+- **ENV flags** -- feature flags via environment variables
 
 All services are self-hosted and configured via environment variables.
 

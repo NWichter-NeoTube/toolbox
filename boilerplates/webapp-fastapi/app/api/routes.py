@@ -1,7 +1,7 @@
 """Example API routes.
 
 These routes demonstrate integration with the toolbox services
-(PostHog analytics, Unleash feature flags, Sentry error tracking).
+(Umami analytics, GlitchTip error tracking, ENV-based feature flags).
 Replace or extend them to fit your application.
 """
 
@@ -12,9 +12,9 @@ from typing import Any
 from fastapi import APIRouter, Header
 from pydantic import BaseModel
 
-from app.core.analytics import analytics_client
+from app.core.analytics import track_event
 from app.core.error_tracking import capture_exception, capture_message
-from app.core.feature_flags import feature_flag_client
+from app.core.feature_flags import get_all_flags, is_enabled
 
 router = APIRouter(prefix="/api/v1", tags=["api"])
 
@@ -28,7 +28,6 @@ class EventPayload(BaseModel):
     """Body for the event ingestion endpoint."""
 
     event: str
-    distinct_id: str = "anonymous"
     properties: dict[str, Any] = {}
 
 
@@ -38,7 +37,7 @@ class StatusResponse(BaseModel):
     app: str
     version: str
     debug: bool
-    feature_flags: dict[str, bool | str | None]
+    feature_flags: dict[str, bool]
 
 
 class FlagResponse(BaseModel):
@@ -46,7 +45,6 @@ class FlagResponse(BaseModel):
 
     flag: str
     enabled: bool
-    variant: dict[str, Any]
 
 
 class EventResponse(BaseModel):
@@ -63,17 +61,14 @@ class EventResponse(BaseModel):
 
 @router.get("/status", response_model=StatusResponse)
 async def status() -> StatusResponse:
-    """Return application status including sample feature flag evaluations."""
+    """Return application status including active feature flags."""
     from app.core.config import settings
 
     return StatusResponse(
         app="webapp-fastapi",
         version="0.1.0",
         debug=settings.DEBUG,
-        feature_flags={
-            "new-dashboard": feature_flag_client.is_enabled("new-dashboard"),
-            "dark-mode": feature_flag_client.is_enabled("dark-mode"),
-        },
+        feature_flags=get_all_flags(),
     )
 
 
@@ -82,36 +77,28 @@ async def ingest_event(
     payload: EventPayload,
     x_consent: str = Header(default=""),
 ) -> EventResponse:
-    """Ingest a custom analytics event and forward it to PostHog."""
+    """Ingest a custom analytics event and forward it to Umami."""
     consent_given = x_consent.lower() == "granted"
 
-    analytics_client.track_event(
-        distinct_id=payload.distinct_id,
-        event=payload.event,
-        properties=payload.properties,
+    await track_event(
+        name=payload.event,
+        data=payload.properties,
         consent_given=consent_given,
     )
 
-    # Also send a breadcrumb to Sentry for traceability.
+    # Also send a breadcrumb to GlitchTip for traceability.
     capture_message(f"Event ingested: {payload.event}", level="info")
 
     return EventResponse(accepted=True, event=payload.event)
 
 
 @router.get("/flags/{flag_name}", response_model=FlagResponse)
-async def check_flag(
-    flag_name: str,
-    distinct_id: str = "anonymous",
-) -> FlagResponse:
-    """Evaluate a feature flag via Unleash and return its status."""
-    context = {"userId": distinct_id}
-
+async def check_flag(flag_name: str) -> FlagResponse:
+    """Evaluate a feature flag from environment and return its status."""
     try:
-        enabled = feature_flag_client.is_enabled(flag_name, context=context)
-        variant = feature_flag_client.get_variant(flag_name, context=context)
+        enabled = is_enabled(flag_name)
     except Exception as exc:
         capture_exception(exc)
         enabled = False
-        variant = {}
 
-    return FlagResponse(flag=flag_name, enabled=enabled, variant=variant)
+    return FlagResponse(flag=flag_name, enabled=enabled)

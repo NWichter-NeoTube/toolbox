@@ -1,6 +1,6 @@
 # webapp-fastapi
 
-FastAPI boilerplate for the self-hosted SaaS toolbox stack. Pre-wired with PostHog (analytics), Sentry (error tracking), and Unleash (feature flags) -- all pointing at self-hosted instances.
+FastAPI boilerplate for the self-hosted SaaS toolbox stack. Pre-wired with Umami (analytics), GlitchTip (error tracking), and ENV-based feature flags.
 
 ## Quick start
 
@@ -21,12 +21,10 @@ uvicorn app.main:app --reload
 
 | Variable | Description |
 |---|---|
-| `POSTHOG_API_KEY` | PostHog project API key |
-| `POSTHOG_HOST` | Self-hosted PostHog URL |
-| `SENTRY_DSN` | Self-hosted Sentry DSN |
-| `UNLEASH_URL` | Self-hosted Unleash API URL |
-| `UNLEASH_API_TOKEN` | Unleash server-side API token |
-| `UNLEASH_APP_NAME` | Application name registered in Unleash |
+| `UMAMI_HOST` | Self-hosted Umami URL |
+| `UMAMI_WEBSITE_ID` | Umami website ID |
+| `GLITCHTIP_DSN` | Self-hosted GlitchTip DSN (Sentry-compatible) |
+| `FEATURE_*` | Feature flags (e.g. `FEATURE_DARK_MODE=true`) |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `REDIS_URL` | Redis connection string |
 | `CORS_ORIGINS` | JSON array of allowed origins |
@@ -57,9 +55,9 @@ docker run -p 8000:8000 --env-file .env webapp-fastapi
 
 This boilerplate is designed to run alongside the other services in the toolbox stack:
 
-- **PostHog** -- server-side event tracking and feature flag evaluation. No cookies are set server-side (DSGVO-compliant by design). Consent is respected via the `X-Consent` header.
-- **Sentry** -- error tracking with a `before_send` hook that strips PII when consent has not been granted.
-- **Unleash** -- feature flags with graceful degradation when the Unleash server is unavailable.
+- **Umami** -- privacy-focused server-side event tracking. No cookies are set (DSGVO-compliant by design). Consent is respected via the `X-Consent` header for PII stripping.
+- **GlitchTip** -- Sentry-compatible error tracking with a `before_send` hook that strips PII when consent has not been granted.
+- **Feature flags** -- simple ENV-based flags (`FEATURE_*=true/false`) with no external service required.
 
 ## Project layout
 
@@ -68,12 +66,12 @@ app/
   main.py              Application entrypoint and lifespan
   core/
     config.py           Pydantic settings
-    analytics.py        PostHog client wrapper
-    feature_flags.py    Unleash client wrapper
-    error_tracking.py   Sentry helpers
+    analytics.py        Umami HTTP API client
+    feature_flags.py    ENV-based feature flags
+    error_tracking.py   GlitchTip (Sentry SDK) helpers
   middleware/
     request_id.py       X-Request-ID middleware
-    analytics.py        Per-request PostHog tracking
+    analytics.py        Per-request Umami tracking
   api/
     routes.py           Example v1 API routes
 tests/                  pytest test suite

@@ -1,6 +1,6 @@
 # Toolbox iOS Boilerplate
 
-Swift/SwiftUI boilerplate for the self-hosted SaaS toolbox stack. Ships with PostHog (analytics), Sentry (error tracking), and Unleash (feature flags) -- all self-hosted and DSGVO/GDPR-ready.
+Swift/SwiftUI boilerplate for the self-hosted SaaS toolbox stack. Ships with Umami (analytics), GlitchTip (error tracking), and ENV-based feature flags -- all self-hosted and DSGVO/GDPR-ready.
 
 ## Requirements
 
@@ -13,26 +13,26 @@ Swift/SwiftUI boilerplate for the self-hosted SaaS toolbox stack. Ships with Pos
 1. Copy `.env.example` to your xcconfig or `Info.plist` build settings:
 
    ```
-   POSTHOG_API_KEY = phc_your_key
-   POSTHOG_HOST = https://posthog.example.com
-   SENTRY_DSN = https://key@sentry.example.com/5
-   UNLEASH_URL = https://unleash.example.com/api/frontend
-   UNLEASH_CLIENT_KEY = your-frontend-token
+   UMAMI_HOST = https://track.sorevo.de
+   UMAMI_WEBSITE_ID = your-website-id
+   GLITCHTIP_DSN = https://key@logs.example.com/1
+   FEATURE_DARK_MODE = false
+   FEATURE_ONBOARDING_V2 = true
    ```
 
 2. Reference the keys in your target's `Info.plist`:
 
    ```xml
-   <key>POSTHOG_API_KEY</key>
-   <string>$(POSTHOG_API_KEY)</string>
-   <key>POSTHOG_HOST</key>
-   <string>$(POSTHOG_HOST)</string>
-   <key>SENTRY_DSN</key>
-   <string>$(SENTRY_DSN)</string>
-   <key>UNLEASH_URL</key>
-   <string>$(UNLEASH_URL)</string>
-   <key>UNLEASH_CLIENT_KEY</key>
-   <string>$(UNLEASH_CLIENT_KEY)</string>
+   <key>UMAMI_HOST</key>
+   <string>$(UMAMI_HOST)</string>
+   <key>UMAMI_WEBSITE_ID</key>
+   <string>$(UMAMI_WEBSITE_ID)</string>
+   <key>GLITCHTIP_DSN</key>
+   <string>$(GLITCHTIP_DSN)</string>
+   <key>FEATURE_DARK_MODE</key>
+   <string>$(FEATURE_DARK_MODE)</string>
+   <key>FEATURE_ONBOARDING_V2</key>
+   <string>$(FEATURE_ONBOARDING_V2)</string>
    ```
 
 3. Resolve packages:
@@ -46,8 +46,8 @@ Swift/SwiftUI boilerplate for the self-hosted SaaS toolbox stack. Ships with Pos
 The app follows a strict consent-before-tracking approach:
 
 1. On first launch a consent banner is shown (see `ConsentView`).
-2. PostHog starts in **opted-out** mode -- no data is collected until the user consents.
-3. Sentry initialises without PII; user context is only attached after consent.
+2. Umami tracking is disabled by default -- no data is collected until the user consents.
+3. GlitchTip (Sentry-compatible) initialises without PII; user context is only attached after consent.
 4. Users can change their choices at any time via **Settings > Privacy**.
 5. "Reset All Consent" revokes everything and re-shows the banner on next launch.
 
@@ -60,9 +60,9 @@ Sources/
   ToolboxApp.swift              App entry point
   Core/
     Config.swift                Centralised configuration from Info.plist / xcconfig
-    AnalyticsManager.swift      Consent-aware PostHog wrapper (ObservableObject)
-    FeatureFlagManager.swift    Unleash wrapper (ObservableObject)
-    ErrorTracker.swift          Sentry wrapper (static)
+    AnalyticsManager.swift      Consent-aware Umami wrapper (ObservableObject)
+    FeatureFlagManager.swift    ENV-based feature flags (ObservableObject)
+    ErrorTracker.swift          GlitchTip wrapper via Sentry SDK (static)
   Providers/
     ConsentView.swift           GDPR consent banner
     HomeView.swift              Main screen with flag demos and diagnostics
@@ -83,8 +83,8 @@ Tests use an isolated `UserDefaults` suite so they never interfere with the app'
 
 This boilerplate is designed to work with the rest of the self-hosted toolbox stack:
 
-- **PostHog** instance at `POSTHOG_HOST` for product analytics.
-- **Sentry** instance at the host encoded in `SENTRY_DSN` for error tracking.
-- **Unleash** frontend API at `UNLEASH_URL` for feature flags.
+- **Umami** instance at `UMAMI_HOST` for privacy-friendly analytics.
+- **GlitchTip** (Sentry-compatible) instance at the host encoded in `GLITCHTIP_DSN` for error tracking.
+- **ENV-based feature flags** via Info.plist / build settings for simple, dependency-free toggles.
 
-All three services run on your own infrastructure -- no data leaves your environment.
+All services run on your own infrastructure -- no data leaves your environment.

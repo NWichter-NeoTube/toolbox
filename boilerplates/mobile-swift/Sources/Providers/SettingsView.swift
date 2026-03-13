@@ -27,7 +27,7 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .onAppear {
-            analytics.trackScreen(name: "Settings")
+            analytics.trackScreen("Settings")
         }
         .confirmationDialog(
             "Reset Consent",
@@ -51,7 +51,7 @@ struct SettingsView: View {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Analytics")
-                        Text("Anonymous usage data via PostHog")
+                        Text("Anonymous usage data via Umami")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -72,7 +72,7 @@ struct SettingsView: View {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Error Tracking")
-                        Text("Crash reports via Sentry")
+                        Text("Crash reports via GlitchTip")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

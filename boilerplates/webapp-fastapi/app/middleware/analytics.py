@@ -1,17 +1,14 @@
-"""Middleware that tracks API requests in PostHog.
+"""Middleware that tracks API requests via Umami.
 
-Every request that is **not** a health-check is recorded as a
+Every request that is **not** a health-check is recorded as an
 ``api_request`` event with method, path, status code, and duration.
 
 Consent handling
 ----------------
 The middleware reads the ``X-Consent`` header:
 
-* ``"granted"`` — the event includes the user's ``distinct_id`` (taken
-  from the ``X-User-ID`` header if present, otherwise from the request
-  ID).
-* Anything else (or absent) — the event is sent under the generic
-  ``"anonymous"`` identity with PII stripped.
+* ``"granted"`` -- the event includes full request metadata.
+* Anything else (or absent) -- PII is stripped from the event data.
 """
 
 from __future__ import annotations
@@ -21,7 +18,7 @@ from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.core.analytics import analytics_client
+from app.core.analytics import track_event
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -32,11 +29,10 @@ _SKIP_PATHS = frozenset({"/health", "/docs", "/redoc", "/openapi.json"})
 
 _CONSENT_HEADER = "x-consent"
 _CONSENT_GRANTED = "granted"
-_USER_ID_HEADER = "x-user-id"
 
 
 class AnalyticsMiddleware(BaseHTTPMiddleware):
-    """Record an ``api_request`` event in PostHog for every request."""
+    """Record an ``api_request`` event in Umami for every request."""
 
     async def dispatch(self, request: Request, call_next) -> Response:  # noqa: ANN001
         if request.url.path in _SKIP_PATHS:
@@ -48,25 +44,17 @@ class AnalyticsMiddleware(BaseHTTPMiddleware):
 
         consent_given = request.headers.get(_CONSENT_HEADER, "") == _CONSENT_GRANTED
 
-        if consent_given:
-            distinct_id = request.headers.get(
-                _USER_ID_HEADER,
-                getattr(request.state, "request_id", "unknown"),
-            )
-        else:
-            distinct_id = "anonymous"
-
-        properties: dict[str, object] = {
+        data: dict[str, object] = {
             "method": request.method,
             "path": request.url.path,
             "status_code": response.status_code,
             "duration_ms": duration_ms,
         }
 
-        analytics_client.track_event(
-            distinct_id=distinct_id,
-            event="api_request",
-            properties=properties,
+        await track_event(
+            name="api_request",
+            data=data,
+            url=request.url.path,
             consent_given=consent_given,
         )
 

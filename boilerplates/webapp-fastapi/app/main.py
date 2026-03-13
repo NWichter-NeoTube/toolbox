@@ -9,10 +9,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router as api_router
-from app.core.analytics import analytics_client
+from app.core.analytics import shutdown as analytics_shutdown
 from app.core.config import settings
-from app.core.error_tracking import init_sentry
-from app.core.feature_flags import feature_flag_client
+from app.core.error_tracking import init_error_tracking
 from app.middleware.analytics import AnalyticsMiddleware
 from app.middleware.request_id import RequestIDMiddleware
 
@@ -24,30 +23,23 @@ if TYPE_CHECKING:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Manage application startup and shutdown lifecycle.
 
-    Startup: initialize PostHog analytics client and Unleash feature flag client.
-    Shutdown: flush and close both clients gracefully.
+    Startup: no external clients to initialize (Umami is stateless HTTP,
+    feature flags are ENV-based).
+    Shutdown: close the async HTTP client used for analytics.
     """
     # --- Startup ---
-    analytics_client.initialize(
-        api_key=settings.POSTHOG_API_KEY,
-        host=settings.POSTHOG_HOST,
-    )
-    feature_flag_client.initialize(
-        url=settings.UNLEASH_URL,
-        api_token=settings.UNLEASH_API_TOKEN,
-        app_name=settings.UNLEASH_APP_NAME,
-    )
-
     yield
 
     # --- Shutdown ---
-    analytics_client.shutdown()
-    feature_flag_client.shutdown()
+    await analytics_shutdown()
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    init_sentry(dsn=settings.SENTRY_DSN, environment="development" if settings.DEBUG else "production")
+    init_error_tracking(
+        dsn=settings.GLITCHTIP_DSN,
+        environment="development" if settings.DEBUG else "production",
+    )
 
     app = FastAPI(
         title="Webapp FastAPI",

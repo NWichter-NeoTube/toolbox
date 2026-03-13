@@ -78,7 +78,7 @@ struct ConsentView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Analytics")
                             .font(.subheadline.weight(.medium))
-                        Text("Anonymous usage data via PostHog")
+                        Text("Anonymous usage data via Umami")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -93,7 +93,7 @@ struct ConsentView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Error Tracking")
                             .font(.subheadline.weight(.medium))
-                        Text("Crash reports via Sentry")
+                        Text("Crash reports via GlitchTip")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

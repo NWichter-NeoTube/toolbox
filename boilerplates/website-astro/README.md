@@ -1,6 +1,6 @@
 # Toolbox Website (Astro)
 
-Static website boilerplate built on Astro with self-hosted PostHog analytics, Sentry error tracking, Unleash feature flags, and a DSGVO/GDPR-compliant cookie consent flow.
+Static website boilerplate built on Astro with self-hosted Umami analytics, GlitchTip error tracking (Sentry-compatible), ENV-based feature flags, and a DSGVO/GDPR-compliant cookie consent flow.
 
 ## Quick Start
 
@@ -32,30 +32,32 @@ Copy `.env.example` to `.env` and fill in your values. All variables prefixed wi
 
 | Variable                       | Description                                       |
 | ------------------------------ | ------------------------------------------------- |
-| `PUBLIC_POSTHOG_KEY`           | PostHog project API key                           |
-| `PUBLIC_POSTHOG_HOST`          | PostHog instance URL                              |
-| `PUBLIC_SENTRY_DSN`            | Sentry DSN                                        |
-| `PUBLIC_UNLEASH_URL`           | Unleash front-end API / proxy URL                 |
-| `PUBLIC_UNLEASH_CLIENT_KEY`    | Unleash front-end API token                       |
+| `PUBLIC_UMAMI_WEBSITE_ID`      | Umami website ID                                  |
+| `PUBLIC_UMAMI_HOST`            | Umami instance URL                                |
+| `PUBLIC_GLITCHTIP_DSN`         | GlitchTip DSN (Sentry-compatible)                 |
+| `GLITCHTIP_AUTH_TOKEN`         | GlitchTip auth token (for source maps)            |
+| `GLITCHTIP_ORG`                | GlitchTip organization slug                       |
+| `GLITCHTIP_PROJECT`            | GlitchTip project slug                            |
+| `PUBLIC_FEATURE_*`             | Feature flags (e.g. `PUBLIC_FEATURE_DARK_MODE`)   |
 | `PUBLIC_SITE_URL`              | Canonical site URL (used for sitemap & OG tags)   |
 
 ## Cookie Consent Flow
 
 The boilerplate is designed to comply with DSGVO (German GDPR) out of the box:
 
-1. **First visit** -- PostHog starts in *cookieless* mode (`persistence: "memory"`, autocapture off). No cookies or localStorage entries are written. Sentry captures errors without PII.
-2. **User clicks "Accept All"** -- PostHog switches to full mode (cookies + localStorage, autocapture, session replay). Sentry enables PII and session replay. Preference is stored in `localStorage`.
-3. **User clicks "Only Essential"** -- Analytics stays cookieless. Preference is stored so the banner is not shown again.
+1. **First visit** -- Umami loads in privacy-friendly mode (no cookies by default). GlitchTip captures errors without PII.
+2. **User clicks "Accept All"** -- Custom event tracking is enabled. GlitchTip enables PII collection. Preference is stored in `localStorage`.
+3. **User clicks "Only Essential"** -- Custom event tracking stays disabled. Preference is stored so the banner is not shown again.
 4. **User opens "Settings"** -- Granular toggles for analytics and error tracking allow partial consent.
-5. **Consent revocation** -- Calling `revokeConsent()` clears all PostHog cookies/localStorage, switches back to memory mode, and notifies Sentry to strip PII.
+5. **Consent revocation** -- Calling `revokeConsent()` disables custom event tracking and notifies GlitchTip to strip PII.
 
 ## Toolbox Stack Integration
 
 This boilerplate is part of a self-hosted SaaS toolbox stack:
 
-- **PostHog** -- product analytics, session replay, A/B testing
-- **Sentry** -- error tracking, performance monitoring
-- **Unleash** -- feature flags, gradual rollouts
+- **Umami** -- privacy-friendly analytics (no cookies)
+- **GlitchTip** -- error tracking, performance monitoring (Sentry-compatible)
+- **ENV-based feature flags** -- simple build-time flags via environment variables
 
 All services are self-hosted and configured via environment variables.
 

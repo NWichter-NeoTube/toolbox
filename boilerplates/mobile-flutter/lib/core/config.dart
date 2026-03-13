@@ -3,49 +3,35 @@
 /// Pass values via `--dart-define` flags:
 /// ```bash
 /// flutter run \
-///   --dart-define=POSTHOG_API_KEY=phc_xxx \
-///   --dart-define=POSTHOG_HOST=https://posthog.example.com \
-///   --dart-define=SENTRY_DSN=https://key@sentry.example.com/4 \
-///   --dart-define=UNLEASH_URL=https://unleash.example.com/api/frontend \
-///   --dart-define=UNLEASH_CLIENT_KEY=your-frontend-token
+///   --dart-define=UMAMI_HOST=https://track.sorevo.de \
+///   --dart-define=UMAMI_WEBSITE_ID=your-website-id \
+///   --dart-define=GLITCHTIP_DSN=https://key@logs.example.com/1 \
+///   --dart-define=FEATURE_DARK_MODE=false \
+///   --dart-define=FEATURE_ONBOARDING_V2=true
 /// ```
 class AppConfig {
   AppConfig._();
 
   // ---------------------------------------------------------------------------
-  // PostHog (self-hosted analytics)
+  // Umami (self-hosted analytics)
   // ---------------------------------------------------------------------------
 
-  static const String postHogApiKey = String.fromEnvironment(
-    'POSTHOG_API_KEY',
+  static const String umamiHost = String.fromEnvironment(
+    'UMAMI_HOST',
     defaultValue: '',
   );
 
-  static const String postHogHost = String.fromEnvironment(
-    'POSTHOG_HOST',
-    defaultValue: 'https://posthog.example.com',
-  );
-
-  // ---------------------------------------------------------------------------
-  // Sentry (self-hosted error tracking)
-  // ---------------------------------------------------------------------------
-
-  static const String sentryDsn = String.fromEnvironment(
-    'SENTRY_DSN',
+  static const String umamiWebsiteId = String.fromEnvironment(
+    'UMAMI_WEBSITE_ID',
     defaultValue: '',
   );
 
   // ---------------------------------------------------------------------------
-  // Unleash (self-hosted feature flags)
+  // GlitchTip (self-hosted error tracking, Sentry-compatible)
   // ---------------------------------------------------------------------------
 
-  static const String unleashUrl = String.fromEnvironment(
-    'UNLEASH_URL',
-    defaultValue: 'https://unleash.example.com/api/frontend',
-  );
-
-  static const String unleashClientKey = String.fromEnvironment(
-    'UNLEASH_CLIENT_KEY',
+  static const String glitchtipDsn = String.fromEnvironment(
+    'GLITCHTIP_DSN',
     defaultValue: '',
   );
 
@@ -61,13 +47,10 @@ class AppConfig {
   // Validation helpers
   // ---------------------------------------------------------------------------
 
-  /// Returns `true` when the required PostHog env vars are present.
-  static bool get isPostHogConfigured => postHogApiKey.isNotEmpty;
+  /// Returns `true` when the required Umami env vars are present.
+  static bool get isUmamiConfigured =>
+      umamiHost.isNotEmpty && umamiWebsiteId.isNotEmpty;
 
-  /// Returns `true` when the required Sentry env var is present.
-  static bool get isSentryConfigured => sentryDsn.isNotEmpty;
-
-  /// Returns `true` when the required Unleash env vars are present.
-  static bool get isUnleashConfigured =>
-      unleashUrl.isNotEmpty && unleashClientKey.isNotEmpty;
+  /// Returns `true` when the required GlitchTip env var is present.
+  static bool get isGlitchTipConfigured => glitchtipDsn.isNotEmpty;
 }

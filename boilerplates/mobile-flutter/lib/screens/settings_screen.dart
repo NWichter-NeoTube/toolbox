@@ -36,7 +36,7 @@ class SettingsScreen extends StatelessWidget {
                 SwitchListTile(
                   title: const Text('Analytics'),
                   subtitle: const Text(
-                    'Anonymous usage data via self-hosted PostHog',
+                    'Anonymous usage data via self-hosted Umami',
                   ),
                   value: analytics.analyticsConsentGranted,
                   onChanged: (enabled) {
@@ -51,7 +51,7 @@ class SettingsScreen extends StatelessWidget {
                 SwitchListTile(
                   title: const Text('Error Tracking'),
                   subtitle: const Text(
-                    'Crash reports via self-hosted Sentry',
+                    'Crash reports via self-hosted GlitchTip',
                   ),
                   value: analytics.errorTrackingConsentGranted,
                   onChanged: (enabled) {

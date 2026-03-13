@@ -6,9 +6,9 @@ import '../providers/analytics_provider.dart';
 /// Full-screen consent prompt shown on first launch.
 ///
 /// The user can:
-/// - **Accept All** — enable both analytics and error tracking.
-/// - **Only Essential** — reject all optional tracking.
-/// - **Customize** — toggle individual categories.
+/// - **Accept All** -- enable both analytics and error tracking.
+/// - **Only Essential** -- reject all optional tracking.
+/// - **Customize** -- toggle individual categories.
 ///
 /// Consent choices are persisted via [AnalyticsProvider] into SharedPreferences
 /// and can be modified later from the settings screen.
@@ -79,7 +79,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                         SwitchListTile(
                           title: const Text('Analytics'),
                           subtitle: const Text(
-                            'Anonymous usage data via PostHog',
+                            'Anonymous usage data via Umami',
                           ),
                           value: _analyticsEnabled,
                           onChanged: (v) =>
@@ -89,7 +89,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                         SwitchListTile(
                           title: const Text('Error Tracking'),
                           subtitle: const Text(
-                            'Crash reports via Sentry',
+                            'Crash reports via GlitchTip',
                           ),
                           value: _errorTrackingEnabled,
                           onChanged: (v) =>

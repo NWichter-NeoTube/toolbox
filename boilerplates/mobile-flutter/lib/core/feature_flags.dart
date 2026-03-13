@@ -1,91 +1,36 @@
-import 'package:unleash_proxy_client_flutter/unleash_proxy_client_flutter.dart';
-
-import 'config.dart';
-
-/// Wrapper around the Unleash frontend (proxy) client for self-hosted feature
-/// flag evaluation.
+/// Feature flags via environment variables / compile-time constants.
 ///
-/// Provides graceful fallback behaviour when the Unleash server is unreachable
-/// or not configured.
+/// Flags are defined at build time using `--dart-define` and cannot change at
+/// runtime. This keeps the implementation simple and avoids the need for a
+/// remote feature-flag server.
+///
+/// Usage:
+/// ```bash
+/// flutter run \
+///   --dart-define=FEATURE_DARK_MODE=true \
+///   --dart-define=FEATURE_ONBOARDING_V2=false
+/// ```
 class FeatureFlagService {
-  FeatureFlagService();
+  static final FeatureFlagService _instance = FeatureFlagService._internal();
+  factory FeatureFlagService() => _instance;
+  FeatureFlagService._internal();
 
-  UnleashClient? _client;
-  bool _initialized = false;
+  // Define flags with defaults. Override via --dart-define or .env
+  static const _flags = {
+    'dark_mode': String.fromEnvironment('FEATURE_DARK_MODE', defaultValue: 'false'),
+    'onboarding_v2': String.fromEnvironment('FEATURE_ONBOARDING_V2', defaultValue: 'true'),
+  };
 
-  /// Whether the Unleash client has successfully connected.
-  bool get isInitialized => _initialized;
-
-  // ---------------------------------------------------------------------------
-  // Lifecycle
-  // ---------------------------------------------------------------------------
-
-  /// Connect to the self-hosted Unleash frontend API.
-  ///
-  /// If [AppConfig.isUnleashConfigured] is `false` or the connection fails, the
-  /// service degrades silently — all flags default to disabled.
-  Future<void> init() async {
-    if (!AppConfig.isUnleashConfigured) {
-      return;
-    }
-
-    try {
-      _client = UnleashClient(
-        url: Uri.parse(AppConfig.unleashUrl),
-        clientKey: AppConfig.unleashClientKey,
-        appName: 'toolbox-mobile',
-      );
-
-      await _client!.start();
-      _initialized = true;
-    } catch (_) {
-      // Graceful degradation — treat all flags as disabled.
-      _client = null;
-      _initialized = false;
-    }
+  /// Check whether [flag] is enabled. Returns `false` for unknown flags.
+  bool isEnabled(String flag) {
+    final value = _flags[flag.toLowerCase()] ?? 'false';
+    return value == 'true' || value == '1';
   }
 
-  /// Disconnect from the Unleash server and release resources.
-  void dispose() {
-    _client?.close();
-    _client = null;
-    _initialized = false;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Flag evaluation
-  // ---------------------------------------------------------------------------
-
-  /// Check whether [flagName] is enabled. Returns `false` when the client is
-  /// unavailable.
-  bool isEnabled(String flagName) {
-    if (!_initialized || _client == null) return false;
-
-    try {
-      return _client!.isEnabled(flagName);
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Get the variant for [flagName]. Returns `null` when the client is
-  /// unavailable or no variant is assigned.
-  Variant? getVariant(String flagName) {
-    if (!_initialized || _client == null) return null;
-
-    try {
-      final variant = _client!.getVariant(flagName);
-      // Unleash returns a disabled variant when no match — treat as null.
-      if (!variant.enabled) return null;
-      return variant;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Register a listener that fires whenever flag state changes (e.g. after a
-  /// poll refresh).
-  void onUpdate(void Function() callback) {
-    _client?.on('update', data: null, callback: (_) => callback());
+  /// Return all flags and their current boolean values.
+  Map<String, bool> getAllFlags() {
+    return _flags.map(
+      (key, value) => MapEntry(key, value == 'true' || value == '1'),
+    );
   }
 }

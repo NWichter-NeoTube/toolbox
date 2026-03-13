@@ -2,7 +2,7 @@
 
 How to plan, create, and ship new projects using this toolbox. Every project follows the same lifecycle: plan, set up infrastructure, develop, collect feedback, iterate.
 
-> **Prerequisites:** Familiarity with the toolbox repo structure (see [00-overview.md](00-overview.md)). For deployment features, you need a Coolify instance and access to PostHog, Sentry, Unleash, and Infisical.
+> **Prerequisites:** Familiarity with the toolbox repo structure (see [00-overview.md](00-overview.md)). For deployment features, you need a Coolify instance and access to Umami, GlitchTip, and Infisical.
 
 ---
 
@@ -26,15 +26,17 @@ Pick the boilerplate that matches your project. If you need multiple (e.g., a Ne
 
 Not every project needs every service. Use this matrix to decide:
 
-| Service    | Website | Web App | API  | Mobile App |
-|------------|---------|---------|------|------------|
-| PostHog    | Yes     | Yes     | Yes  | Yes        |
-| Sentry     | Yes     | Yes     | Yes  | Yes        |
-| Unleash    | Optional| Yes     | Yes  | Yes        |
-| Grafana    | No      | Yes     | Yes  | Optional   |
-| Meilisearch| Optional| Optional| Optional | Optional |
-| Qdrant     | No      | Optional| Optional | No       |
-| MinIO      | No      | Optional| Optional | No       |
+| Service       | Website | Web App | API  | Mobile App |
+|---------------|---------|---------|------|------------|
+| Umami         | Yes     | Yes     | Yes  | Yes        |
+| GlitchTip     | Yes     | Yes     | Yes  | Yes        |
+| ENV Flags     | Optional| Yes     | Yes  | Yes        |
+| Uptime Kuma   | Yes     | Yes     | Yes  | Yes        |
+| Listmonk+Plunk| Optional| Optional| Optional | Optional |
+| Grafana       | No      | Yes     | Yes  | Optional   |
+| Meilisearch   | Optional| Optional| Optional | Optional |
+| Qdrant        | No      | Optional| Optional | No       |
+| MinIO         | No      | Optional| Optional | No       |
 
 ### 1.3 Domain-Planung
 
@@ -113,11 +115,11 @@ Populate the `.env` file with the values for this project. At minimum:
 
 ```bash
 # .env (local development)
-NEXT_PUBLIC_POSTHOG_KEY=phc_your_project_key
-NEXT_PUBLIC_POSTHOG_HOST=https://posthog.example.com
-SENTRY_DSN=https://examplekey@sentry.example.com/1
-UNLEASH_SERVER_URL=https://unleash.example.com/api
-UNLEASH_CLIENT_KEY=project:environment.your-api-token
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id
+NEXT_PUBLIC_UMAMI_URL=https://track.example.com
+NEXT_PUBLIC_GLITCHTIP_DSN=https://examplekey@logs.example.com/1
+FEATURE_NEW_ONBOARDING=true
+FEATURE_DARK_MODE=false
 ```
 
 ### 2.3 Coolify-Projekt erstellen
@@ -181,8 +183,8 @@ curl -s -X PATCH "$COOLIFY_API_URL/api/v1/applications/$RESOURCE_UUID/envs" \
   -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "key": "NEXT_PUBLIC_POSTHOG_KEY",
-    "value": "phc_your_project_key",
+    "key": "NEXT_PUBLIC_UMAMI_WEBSITE_ID",
+    "value": "your-website-id",
     "is_preview": false
   }' | jq .
 
@@ -191,88 +193,73 @@ curl -s -X POST "$COOLIFY_API_URL/api/v1/applications/$RESOURCE_UUID/start" \
   -H "Authorization: Bearer $COOLIFY_API_TOKEN" | jq .
 ```
 
-### 2.5 PostHog-Projekt einrichten
+### 2.5 Umami Analytics einrichten
 
-1. Open `https://posthog.example.com` and log in.
-2. Click **New Project** and name it after your project.
-3. Copy the **Project API Key** (starts with `phc_`).
-4. Add the key to your `.env` and to Infisical.
+1. Open your Umami instance and log in.
+2. Click **Add website** and name it after your project.
+3. Copy the **Website ID**.
+4. Add the ID to your `.env` and to Infisical as `NEXT_PUBLIC_UMAMI_WEBSITE_ID`.
 
-Initialize PostHog in your app (example for Next.js):
+Add the Umami tracking script to your app (example for Next.js):
 
 ```typescript
-// lib/posthog.ts
-import posthog from 'posthog-js';
-
-export function initPostHog() {
-  if (typeof window !== 'undefined') {
-    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-      persistence: 'memory',            // Cookieless by default (DSGVO)
-      disable_session_recording: true,   // Enable only after consent
-      capture_pageview: true,
-      capture_pageleave: true,
-    });
-  }
-  return posthog;
-}
+// app/layout.tsx (inside <head>)
+{process.env.NODE_ENV === 'production' && (
+  <script
+    defer
+    src={`${process.env.NEXT_PUBLIC_UMAMI_URL}/script.js`}
+    data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+  />
+)}
 ```
 
-### 2.6 Sentry-Projekt einrichten
+### 2.6 GlitchTip-Projekt einrichten
 
-1. Open `https://sentry.example.com` and log in.
+1. Open your GlitchTip instance and log in.
 2. Go to **Projects** > **Create Project**.
 3. Select your platform (Next.js, Python, Flutter, etc.).
-4. Copy the **DSN** (looks like `https://key@sentry.example.com/1`).
+4. Copy the **DSN** (looks like `https://key@logs.example.com/1`).
 5. Add the DSN to your `.env` and to Infisical.
 
-Initialize Sentry (example for Next.js):
+Initialize GlitchTip (example for Next.js -- GlitchTip is Sentry-compatible):
 
 ```typescript
-// sentry.client.config.ts
+// lib/glitchtip.ts
 import * as Sentry from '@sentry/nextjs';
 
 Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  dsn: process.env.NEXT_PUBLIC_GLITCHTIP_DSN,
   environment: process.env.NODE_ENV,
   tracesSampleRate: 0.1,
-  replaysSessionSampleRate: 0,
-  replaysOnErrorSampleRate: 1.0,
 });
 ```
 
-### 2.7 Unleash-Projekt einrichten
+### 2.7 Feature Flags einrichten (ENV-based)
 
-1. Open `https://unleash.example.com` and log in.
-2. Go to **Projects** > **Create Project**, name it after your project.
-3. Create a **Client API token** for the project scoped to the correct environment.
-4. Add the token to your `.env` and to Infisical.
+Feature flags are managed via environment variables with the `FEATURE_` prefix. No external service is needed.
 
-Create your first feature flags:
+Add flags to your `.env` and to Infisical for each environment:
 
 ```bash
-# Create a feature flag via API
-curl -s -X POST "https://unleash.example.com/api/admin/projects/my-project/features" \
-  -H "Authorization: Bearer $UNLEASH_ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "new-onboarding-flow",
-    "description": "Redesigned onboarding experience",
-    "type": "experiment",
-    "impressionData": true
-  }' | jq .
+# .env
+FEATURE_NEW_ONBOARDING=false
+FEATURE_DARK_MODE=true
+FEATURE_BETA_CHECKOUT=false
 ```
 
 Use flags in your code:
 
 ```typescript
-// Example: Next.js with Unleash
-import { useFlag } from '@unleash/nextjs';
+// lib/features.ts
+export function isFeatureEnabled(flag: string): boolean {
+  return process.env[`FEATURE_${flag.toUpperCase().replace(/-/g, '_')}`] === 'true';
+}
+
+// Usage in components
+import { isFeatureEnabled } from '@/lib/features';
 
 export function OnboardingPage() {
-  const newOnboarding = useFlag('new-onboarding-flow');
-
-  if (newOnboarding) {
+  if (isFeatureEnabled('NEW_ONBOARDING')) {
     return <NewOnboardingFlow />;
   }
   return <LegacyOnboardingFlow />;
@@ -352,19 +339,18 @@ Use this checklist in every PR review:
 - [ ] No regressions in existing functionality
 
 ### Analytics & Tracking
-- [ ] PostHog events added for key user actions
-- [ ] PostHog properties include relevant context (plan, role, source)
-- [ ] No PII sent to PostHog (no emails, passwords, etc.)
+- [ ] Umami events added for key user actions
+- [ ] No PII sent to Umami (no emails, passwords, etc.)
 
 ### Error Tracking
-- [ ] Sentry captures errors with meaningful context
+- [ ] GlitchTip captures errors with meaningful context
 - [ ] Error boundaries in place (React) or try/catch (API)
 - [ ] Custom error messages are user-friendly
 
 ### Feature Flags
-- [ ] New features behind Unleash flags where appropriate
-- [ ] Flag cleanup: old flags removed after full rollout
-- [ ] Flag naming follows convention: kebab-case, descriptive
+- [ ] New features behind ENV-based feature flags (`FEATURE_*`) where appropriate
+- [ ] Flag cleanup: old flags and env vars removed after full rollout
+- [ ] Flag naming follows convention: `FEATURE_UPPER_SNAKE_CASE`
 
 ### Security
 - [ ] No secrets hardcoded (use Infisical)
@@ -381,10 +367,10 @@ Use this checklist in every PR review:
 
 Set up notifications so the team stays informed without checking dashboards:
 
-**Sentry → Slack/Discord:**
-1. In Sentry, go to **Settings** > **Integrations** > **Slack** (or use the generic webhook).
+**GlitchTip → Slack/Discord:**
+1. In GlitchTip, go to **Settings** > **Notifications**.
 2. Create alert rules: "When a new issue is seen, send to #errors channel."
-3. Add a rule for error spikes: "When event frequency exceeds 10/min, alert #oncall."
+3. Add a rule for error spikes: "When event frequency exceeds threshold, alert #oncall."
 
 **Uptime Kuma → Slack/Discord:**
 1. In Uptime Kuma, go to **Settings** > **Notifications**.
@@ -400,8 +386,8 @@ Set up notifications so the team stays informed without checking dashboards:
 
 Schedule a weekly 30-minute review:
 
-1. **PostHog Analytics** (10 min): Check key metrics dashboard. Look at funnels, retention, feature adoption.
-2. **Sentry Error Trends** (10 min): Review unresolved issues. Check error frequency trends. Assign top errors.
+1. **Umami Analytics** (10 min): Check key metrics dashboard. Look at page views, referrers, and custom events.
+2. **GlitchTip Error Trends** (10 min): Review unresolved issues. Check error frequency trends. Assign top errors.
 3. **Uptime Kuma** (5 min): Review uptime percentages. Investigate any downtime incidents.
 4. **Grafana** (5 min): Check resource usage trends. Look for memory leaks, CPU spikes.
 
@@ -415,9 +401,9 @@ Collect feedback from multiple sources:
 
 | Source               | Tool           | How                                                     |
 |----------------------|----------------|----------------------------------------------------------|
-| In-app feedback      | PostHog        | Surveys triggered by events or pages                     |
-| Bug reports          | Sentry         | Automatic error capture + user feedback widget           |
-| Usage patterns       | PostHog        | Funnels, heatmaps, session recordings (with consent)     |
+| In-app feedback      | Custom / Umami | Surveys triggered by events or pages                     |
+| Bug reports          | GlitchTip      | Automatic error capture + user feedback widget           |
+| Usage patterns       | Umami          | Page views, referrers, custom events                     |
 | Stakeholder feedback | GitHub Issues  | Issue templates for feature requests and bugs            |
 | Customer calls       | Transcription  | Record (with consent) and analyze with `tools/voice-feedback/` |
 
@@ -460,7 +446,7 @@ body:
     id: evidence
     attributes:
       label: Evidence
-      description: Link to PostHog funnels, Sentry errors, or user feedback that supports this.
+      description: Link to Umami analytics, GlitchTip errors, or user feedback that supports this.
 ```
 
 **Bug Report (`bug-report.yml`):**
@@ -478,10 +464,10 @@ body:
     validations:
       required: true
   - type: input
-    id: sentry-link
+    id: glitchtip-link
     attributes:
-      label: Sentry Issue Link
-      description: Paste the Sentry issue URL if available
+      label: GlitchTip Issue Link
+      description: Paste the GlitchTip issue URL if available
   - type: dropdown
     id: severity
     attributes:
@@ -518,7 +504,7 @@ Use a simple 2x2 matrix to prioritize work:
 ```
 
 **Scoring:**
-- **Impact**: How many users are affected? Is it blocking revenue? Does PostHog/Sentry data support the urgency?
+- **Impact**: How many users are affected? Is it blocking revenue? Does Umami/GlitchTip data support the urgency?
 - **Effort**: How many developer-days? Does it require backend + frontend? Are there dependencies?
 
 ### 4.4 Sprint-Planung mit Feature Flags (Flag-Driven Development)
@@ -526,37 +512,35 @@ Use a simple 2x2 matrix to prioritize work:
 Every sprint follows this pattern:
 
 1. **Pick items from the prioritized backlog** based on the impact/effort matrix.
-2. **Create feature flags in Unleash** for every non-trivial change.
-3. **Develop behind flags**: all new code paths are gated by flags (disabled in production).
+2. **Add `FEATURE_*` env vars** in Infisical for every non-trivial change.
+3. **Develop behind flags**: all new code paths are gated by `FEATURE_*` env vars (disabled in production).
 4. **Deploy to staging**: code is deployed but the flag is only enabled in the staging environment.
 5. **QA and validate on staging**.
-6. **Merge to main and deploy to production**: flag remains disabled.
-7. **Gradual rollout**: enable the flag for 10% → 50% → 100% of users.
-8. **Monitor**: watch PostHog metrics and Sentry errors during rollout.
-9. **Clean up**: once at 100% and stable, remove the flag from code.
+6. **Merge to main and deploy to production**: flag remains `false` in production.
+7. **Enable in production**: set the flag to `true` in production Infisical/Coolify.
+8. **Monitor**: watch Umami analytics and GlitchTip errors after enabling.
+9. **Clean up**: once stable, remove the flag from code and env vars.
 
 ### 4.5 Release-Prozess
 
 ```
-1. Feature developed behind flag
-    ↓
-2. Code merged to staging, tested
-    ↓
-3. Code merged to main, deployed to production (flag OFF)
-    ↓
-4. Enable flag for internal team (Unleash: strategy = userIds)
-    ↓
-5. Internal validation: check PostHog events, Sentry errors
-    ↓
-6. Enable for 10% of users (Unleash: gradualRollout = 10)
-    ↓
-7. Monitor for 24-48 hours
-    ↓
-8. If metrics are good: increase to 50%, then 100%
-    ↓
-9. If metrics are bad: disable flag immediately (instant rollback)
-    ↓
-10. After 100% stable for 1 week: remove flag from code
+1. Feature developed behind FEATURE_* env var
+    |
+2. Code merged to staging, tested (flag enabled in staging env)
+    |
+3. Code merged to main, deployed to production (flag OFF in production env)
+    |
+4. Enable flag in production env (set FEATURE_*=true in Infisical/Coolify)
+    |
+5. Internal validation: check Umami events, GlitchTip errors
+    |
+6. Monitor for 24-48 hours
+    |
+7. If metrics are good: flag stays enabled
+    |
+8. If metrics are bad: set flag to false immediately (instant rollback)
+    |
+9. After stable for 1 week: remove flag from code and env vars
 ```
 
 ---
@@ -597,29 +581,26 @@ Copy this into a GitHub Issue when starting a new project:
 - [ ] Auto-deploy enabled for staging branch
 - [ ] First successful deployment completed
 
-### PostHog (Analytics)
-- [ ] PostHog project created
-- [ ] API key added to Infisical and .env
-- [ ] PostHog SDK initialized in app code
-- [ ] Cookieless mode configured (DSGVO)
+### Umami (Analytics)
+- [ ] Umami website created
+- [ ] Website ID added to Infisical and .env
+- [ ] Umami tracking script added to app layout
+- [ ] Cookieless by default (DSGVO-compliant)
 - [ ] Key events defined and tracked (signup, purchase, etc.)
-- [ ] First events visible in PostHog dashboard
+- [ ] First events visible in Umami dashboard
 
-### Sentry (Error Tracking)
-- [ ] Sentry project created
+### GlitchTip (Error Tracking)
+- [ ] GlitchTip project created
 - [ ] DSN added to Infisical and .env
-- [ ] Sentry SDK initialized in app code
+- [ ] GlitchTip SDK initialized in app code (Sentry-compatible)
 - [ ] Source maps configured (for JS/TS projects)
-- [ ] Test error sent and visible in Sentry dashboard
+- [ ] Test error sent and visible in GlitchTip dashboard
 - [ ] Alert rules configured (notify on new issues)
 
-### Unleash (Feature Flags)
-- [ ] Unleash project created
-- [ ] Client API token generated for each environment
-- [ ] Tokens added to Infisical and .env
-- [ ] Unleash SDK initialized in app code
-- [ ] First feature flag created and tested
-- [ ] Environments configured: development, staging, production
+### Feature Flags (ENV-based)
+- [ ] `FEATURE_*` env vars defined for each environment in Infisical
+- [ ] Feature flag helper function added to codebase
+- [ ] First feature flag tested across dev/staging/production
 
 ### Uptime Kuma (Monitoring)
 - [ ] Production monitor added
@@ -629,7 +610,7 @@ Copy this into a GitHub Issue when starting a new project:
 - [ ] Monitor added to public status page (if applicable)
 
 ### Communication
-- [ ] Sentry notifications → Slack/Discord channel
+- [ ] GlitchTip notifications → Slack/Discord channel
 - [ ] Uptime Kuma notifications → Slack/Discord channel
 - [ ] Coolify deploy notifications → Slack/Discord channel
 - [ ] Team members have access to all dashboards
@@ -645,8 +626,8 @@ Copy this into a GitHub Issue when preparing to launch:
 ### Pre-Launch (1 week before)
 - [ ] All critical features implemented and tested
 - [ ] Staging environment fully tested (manual QA pass)
-- [ ] PostHog funnels set up for key user journeys
-- [ ] Sentry alert rules reviewed and configured
+- [ ] Umami tracking verified for key user journeys
+- [ ] GlitchTip alert rules reviewed and configured
 - [ ] Load testing performed (if expecting significant traffic)
 - [ ] Feature flags configured (risky features behind flags)
 - [ ] DNS records verified (production domains)
@@ -655,7 +636,7 @@ Copy this into a GitHub Issue when preparing to launch:
 - [ ] DSGVO compliance check:
   - [ ] Cookie consent banner working (if needed)
   - [ ] Privacy policy published
-  - [ ] PostHog in cookieless mode by default
+  - [ ] Umami in cookieless mode by default
   - [ ] No PII in analytics events
 - [ ] Performance check:
   - [ ] Lighthouse score > 90 (for websites)
@@ -667,15 +648,15 @@ Copy this into a GitHub Issue when preparing to launch:
 - [ ] Trigger production deployment in Coolify
 - [ ] Verify deployment successful (Coolify dashboard)
 - [ ] Smoke test production URLs manually
-- [ ] Verify PostHog is receiving events
-- [ ] Verify Sentry is capturing errors (send test error)
+- [ ] Verify Umami is receiving events
+- [ ] Verify GlitchTip is capturing errors (send test error)
 - [ ] Verify Uptime Kuma monitors are green
 - [ ] Check Grafana dashboards for resource usage
 - [ ] Announce launch to team / stakeholders
 
 ### Post-Launch (first 48 hours)
-- [ ] Monitor Sentry for new errors (check every 4 hours)
-- [ ] Monitor PostHog for expected user flows
+- [ ] Monitor GlitchTip for new errors (check every 4 hours)
+- [ ] Monitor Umami for expected user flows
 - [ ] Monitor Uptime Kuma for downtime
 - [ ] Monitor Grafana for resource spikes
 - [ ] Collect initial user feedback
@@ -684,9 +665,9 @@ Copy this into a GitHub Issue when preparing to launch:
 - [ ] Document any incidents and lessons learned
 
 ### Post-Launch (first week)
-- [ ] Review PostHog analytics: are users doing what we expect?
-- [ ] Review Sentry errors: any patterns or recurring issues?
-- [ ] Gradual rollout of flagged features (10% → 50% → 100%)
+- [ ] Review Umami analytics: are users doing what we expect?
+- [ ] Review GlitchTip errors: any patterns or recurring issues?
+- [ ] Enable flagged features in production (set FEATURE_*=true)
 - [ ] First weekly review meeting
 - [ ] Backlog updated with initial feedback and findings
 ```

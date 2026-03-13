@@ -23,12 +23,13 @@ Future<void> main() async {
   final errorTrackingService = ErrorTrackingService();
 
   // ---------------------------------------------------------------------------
-  // Sentry must wrap runApp to capture Flutter framework errors.
+  // GlitchTip (Sentry-compatible) must wrap runApp to capture Flutter
+  // framework errors.
   // ---------------------------------------------------------------------------
   await SentryFlutter.init(
     (options) {
-      options.dsn = AppConfig.sentryDsn;
-      // Point to self-hosted Sentry instance — no data leaves your infra.
+      options.dsn = AppConfig.glitchtipDsn;
+      // Point to self-hosted GlitchTip instance -- no data leaves your infra.
       options.tracesSampleRate = 1.0;
       options.environment = const String.fromEnvironment(
         'SENTRY_ENVIRONMENT',
@@ -38,14 +39,11 @@ Future<void> main() async {
       options.sendDefaultPii = false;
     },
     appRunner: () async {
-      // Mark Sentry as initialized in the wrapper.
-      await errorTrackingService.init(dsn: AppConfig.sentryDsn);
+      // Mark GlitchTip as initialized in the wrapper.
+      await errorTrackingService.init(dsn: AppConfig.glitchtipDsn);
 
-      // Initialize PostHog in cookieless / opt-out mode.
+      // Initialize Umami analytics (consent state restored from prefs).
       await analyticsService.init();
-
-      // Connect to Unleash for feature flags.
-      await featureFlagService.init();
 
       runApp(
         MultiProvider(

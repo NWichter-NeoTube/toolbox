@@ -1,106 +1,54 @@
 /**
- * Feature flag client backed by Unleash (self-hosted).
+ * Feature flags via environment variables.
  *
- * Uses the Unleash front-end / proxy client so the SDK talks to the
- * Unleash Proxy (or Unleash Front-end API) rather than the Unleash server
- * directly. This keeps the server-side feature configuration private while
- * still allowing client-side flag evaluation.
+ * Simple and lightweight -- no external service needed. Feature flags are
+ * resolved at build time from env vars prefixed with PUBLIC_FEATURE_.
  *
  * Usage:
- *   import { initFeatureFlags, isEnabled, getClient } from "@/lib/feature-flags";
+ *   import { isFeatureEnabled, getAllFlags, resolveFlags } from "@/lib/feature-flags";
  *
- *   await initFeatureFlags();
- *   if (isEnabled("my-feature")) { ... }
+ *   // Client-side (reads from window.__FEATURE_FLAGS__ injected at build time)
+ *   if (isFeatureEnabled("dark_mode")) { ... }
+ *
+ *   // Build-time (in astro.config or layout)
+ *   const flags = resolveFlags(import.meta.env);
  */
 
-import { UnleashClient, type IConfig } from "unleash-proxy-client";
+type FeatureFlag = string;
 
-// ---------------------------------------------------------------------------
-// Configuration
-// ---------------------------------------------------------------------------
-
-const UNLEASH_URL = import.meta.env.PUBLIC_UNLEASH_URL as string;
-const UNLEASH_CLIENT_KEY = import.meta.env.PUBLIC_UNLEASH_CLIENT_KEY as string;
-
-let client: UnleashClient | null = null;
-let readyPromise: Promise<void> | null = null;
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-/**
- * Initialise the Unleash proxy client.
- * Resolves once the initial flag payload has been fetched so that subsequent
- * `isEnabled()` calls return up-to-date values.
- *
- * Safe to call multiple times — only the first invocation creates a client.
- */
-export async function initFeatureFlags(): Promise<void> {
-  if (readyPromise) return readyPromise;
-
-  if (!UNLEASH_URL || !UNLEASH_CLIENT_KEY) {
-    console.warn(
-      "[feature-flags] Unleash URL or client key not configured — feature flags disabled.",
-    );
-    return;
+/** Check if a feature flag is enabled via environment variable. */
+export function isFeatureEnabled(flag: FeatureFlag): boolean {
+  if (typeof window !== "undefined") {
+    // Client-side: check window.__FEATURE_FLAGS__ (injected at build time)
+    const flags = (window as any).__FEATURE_FLAGS__ || {};
+    return flags[flag] === true;
   }
+  return false;
+}
 
-  const config: IConfig = {
-    url: UNLEASH_URL,
-    clientKey: UNLEASH_CLIENT_KEY,
-    appName: "toolbox-website",
-    // Refresh every 30 s — adjust to taste.
-    refreshInterval: 30,
-  };
-
-  client = new UnleashClient(config);
-
-  readyPromise = new Promise<void>((resolve) => {
-    client!.on("ready", () => resolve());
-    // Also resolve on error so the app is not blocked forever.
-    client!.on("error", () => {
-      console.error("[feature-flags] Unleash client failed to initialise.");
-      resolve();
-    });
-  });
-
-  client.start();
-
-  return readyPromise;
+/** Get all feature flags (for debugging/admin). */
+export function getAllFlags(): Record<string, boolean> {
+  if (typeof window !== "undefined") {
+    return (window as any).__FEATURE_FLAGS__ || {};
+  }
+  return {};
 }
 
 /**
- * Check whether a feature flag is enabled.
- * Returns `false` if the client has not been initialised yet or if the flag
- * does not exist.
+ * Build-time flag resolution from env vars.
+ * Env vars prefixed with PUBLIC_FEATURE_ are collected as flags.
+ * Example: PUBLIC_FEATURE_DARK_MODE=true -> { dark_mode: true }
  */
-export function isEnabled(flagName: string): boolean {
-  if (!client) return false;
-  return client.isEnabled(flagName);
-}
-
-/**
- * Get the variant payload for a feature flag (useful for A/B tests).
- */
-export function getVariant(flagName: string) {
-  if (!client) return undefined;
-  return client.getVariant(flagName);
-}
-
-/**
- * Update the Unleash context (e.g. after login to pass a userId).
- */
-export async function updateContext(
-  context: Record<string, string>,
-): Promise<void> {
-  if (!client) return;
-  await client.updateContext(context);
-}
-
-/**
- * Return the raw Unleash client for advanced use-cases.
- */
-export function getClient(): UnleashClient | null {
-  return client;
+export function resolveFlags(
+  env: Record<string, string>,
+): Record<string, boolean> {
+  const flags: Record<string, boolean> = {};
+  const prefix = "PUBLIC_FEATURE_";
+  for (const [key, value] of Object.entries(env)) {
+    if (key.startsWith(prefix)) {
+      const flagName = key.slice(prefix.length).toLowerCase();
+      flags[flagName] = value === "true" || value === "1";
+    }
+  }
+  return flags;
 }

@@ -5,8 +5,8 @@ import '../providers/analytics_provider.dart';
 import '../providers/feature_flag_provider.dart';
 import 'settings_screen.dart';
 
-/// Main home screen demonstrating feature flags, analytics events, and Sentry
-/// error reporting.
+/// Main home screen demonstrating feature flags, analytics events, and
+/// GlitchTip error reporting.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -53,23 +53,19 @@ class HomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _FlagRow(
-                    label: 'new_dashboard',
-                    enabled: flags.isEnabled('new_dashboard'),
+                    label: 'dark_mode',
+                    enabled: flags.isEnabled('dark_mode'),
                   ),
                   const Divider(),
                   _FlagRow(
-                    label: 'beta_feature',
-                    enabled: flags.isEnabled('beta_feature'),
+                    label: 'onboarding_v2',
+                    enabled: flags.isEnabled('onboarding_v2'),
                   ),
                   const Divider(),
                   Text(
-                    flags.isInitialized
-                        ? 'Unleash connected'
-                        : 'Unleash not connected — defaults applied',
+                    'ENV-based feature flags (compile-time)',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: flags.isInitialized
-                          ? Colors.green
-                          : Colors.orange,
+                      color: Colors.grey,
                     ),
                   ),
                 ],
@@ -123,7 +119,7 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // -----------------------------------------------------------------
-          // Sentry test
+          // GlitchTip error tracking test
           // -----------------------------------------------------------------
           Text(
             'Error Tracking',
@@ -148,7 +144,8 @@ class HomeScreen extends StatelessWidget {
                     label: const Text('Send Test Error'),
                     onPressed: () {
                       try {
-                        throw Exception('Test Sentry exception from Toolbox');
+                        throw Exception(
+                            'Test GlitchTip exception from Toolbox');
                       } catch (e, st) {
                         analytics.captureException(e, stackTrace: st);
                         ScaffoldMessenger.of(context).showSnackBar(

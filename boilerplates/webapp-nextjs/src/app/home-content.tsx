@@ -7,10 +7,11 @@
 
 import { useFeatureFlag } from "@/providers/FeatureFlagProvider";
 import { useAnalytics } from "@/providers/AnalyticsProvider";
+import { trackEvent } from "@/lib/analytics";
 
 export function HomeContent() {
-  const showNewDashboard = useFeatureFlag("new-dashboard");
-  const { posthog, hasConsent } = useAnalytics();
+  const showDarkMode = useFeatureFlag("dark_mode");
+  const { hasConsent } = useAnalytics();
 
   return (
     <div>
@@ -25,8 +26,8 @@ export function HomeContent() {
       >
         <h2 style={{ fontSize: "1.25rem", marginTop: 0 }}>Feature Flags</h2>
         <p>
-          <code>new-dashboard</code> (client-side):{" "}
-          <strong>{showNewDashboard ? "Enabled" : "Disabled"}</strong>
+          <code>dark_mode</code> (ENV-based):{" "}
+          <strong>{showDarkMode ? "Enabled" : "Disabled"}</strong>
         </p>
       </section>
 
@@ -41,15 +42,11 @@ export function HomeContent() {
       >
         <h2 style={{ fontSize: "1.25rem", marginTop: 0 }}>Analytics</h2>
         <p>
-          PostHog:{" "}
-          <strong>{posthog ? "Initialised" : "Not initialised"}</strong>
-        </p>
-        <p>
           Consent: <strong>{hasConsent() ? "Granted" : "Not granted"}</strong>
         </p>
         <button
           type="button"
-          onClick={() => posthog?.capture("test_event", { source: "landing" })}
+          onClick={() => trackEvent("test_event", { source: "landing" })}
           style={{
             cursor: "pointer",
             border: "1px solid #e2e8f0",
@@ -75,13 +72,13 @@ export function HomeContent() {
         <h2 style={{ fontSize: "1.25rem", marginTop: 0 }}>Stack</h2>
         <ul style={{ paddingLeft: "1.25rem" }}>
           <li>
-            <strong>PostHog</strong> -- product analytics, session replay
+            <strong>Umami</strong> -- privacy-friendly analytics
           </li>
           <li>
-            <strong>Sentry</strong> -- error tracking, performance monitoring
+            <strong>GlitchTip</strong> -- error tracking (Sentry-compatible)
           </li>
           <li>
-            <strong>Unleash</strong> -- feature flags, gradual rollouts
+            <strong>ENV flags</strong> -- feature flags via environment variables
           </li>
         </ul>
       </section>

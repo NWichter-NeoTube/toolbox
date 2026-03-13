@@ -1,21 +1,18 @@
-import 'package:posthog_flutter/posthog_flutter.dart';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
 
-/// Consent-aware analytics service wrapping self-hosted PostHog.
+/// Consent-aware analytics service wrapping self-hosted Umami.
 ///
-/// Operates in cookieless mode by default (no persistence). Full tracking is
-/// enabled only after the user explicitly grants consent, satisfying
-/// DSGVO/GDPR requirements.
+/// Events are only sent after the user explicitly grants consent, satisfying
+/// DSGVO/GDPR requirements. All data stays on your own infrastructure.
 class AnalyticsService {
   AnalyticsService();
 
-  bool _initialized = false;
   bool _consentGranted = false;
-
-  /// Whether the PostHog SDK has been initialized.
-  bool get isInitialized => _initialized;
 
   /// Whether the user has granted analytics consent.
   bool get consentGranted => _consentGranted;
@@ -24,33 +21,17 @@ class AnalyticsService {
   // Lifecycle
   // ---------------------------------------------------------------------------
 
-  /// Initialize PostHog in cookieless / anonymous mode.
+  /// Initialize the analytics service.
   ///
-  /// No personal data is persisted until [grantConsent] is called.
+  /// Restores the previous consent state from SharedPreferences.
   Future<void> init() async {
-    if (!AppConfig.isPostHogConfigured) {
-      return;
-    }
-
     try {
-      final posthog = Posthog();
-      // PostHog Flutter SDK is configured via AndroidManifest.xml / Info.plist
-      // or via the Posthog().setup() call. Here we ensure opt-out by default.
-      await posthog.disable();
-
-      _initialized = true;
-
-      // Restore previous consent state.
       final prefs = await SharedPreferences.getInstance();
       _consentGranted =
           prefs.getBool(AppConfig.consentAnalyticsKey) ?? false;
-
-      if (_consentGranted) {
-        await posthog.enable();
-      }
     } catch (_) {
-      // Graceful degradation — analytics failure must never crash the app.
-      _initialized = false;
+      // Graceful degradation -- analytics failure must never crash the app.
+      _consentGranted = false;
     }
   }
 
@@ -64,93 +45,58 @@ class AnalyticsService {
     return prefs.getBool(AppConfig.consentAnalyticsKey) ?? false;
   }
 
-  /// Grant analytics consent — enables full PostHog tracking and persists the
+  /// Grant analytics consent -- enables Umami event tracking and persists the
   /// preference to SharedPreferences.
   Future<void> grantConsent() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(AppConfig.consentAnalyticsKey, true);
     _consentGranted = true;
-
-    if (_initialized) {
-      try {
-        final posthog = Posthog();
-        await posthog.enable();
-      } catch (_) {
-        // Swallow — non-critical.
-      }
-    }
   }
 
-  /// Revoke analytics consent — disables tracking, clears stored data and
-  /// resets to anonymous mode.
+  /// Revoke analytics consent -- disables tracking.
   Future<void> revokeConsent() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(AppConfig.consentAnalyticsKey, false);
     _consentGranted = false;
-
-    if (_initialized) {
-      try {
-        final posthog = Posthog();
-        await posthog.disable();
-        await posthog.reset();
-      } catch (_) {
-        // Swallow — non-critical.
-      }
-    }
   }
 
   // ---------------------------------------------------------------------------
   // Tracking helpers
   // ---------------------------------------------------------------------------
 
-  /// Track a named event. Events are silently dropped when the SDK is not
-  /// initialized or consent has not been granted.
+  /// Track a named event via the Umami HTTP API. Events are silently dropped
+  /// when consent has not been granted or Umami is not configured.
   Future<void> trackEvent(
     String name, {
     Map<String, dynamic>? properties,
   }) async {
-    if (!_initialized || !_consentGranted) return;
+    if (!_consentGranted) return;
+
+    final host = AppConfig.umamiHost;
+    final websiteId = AppConfig.umamiWebsiteId;
+    if (host.isEmpty || websiteId.isEmpty) return;
 
     try {
-      final posthog = Posthog();
-      await posthog.capture(
-        eventName: name,
-        properties: properties,
+      await http.post(
+        Uri.parse('$host/api/send'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'payload': {
+            'website': websiteId,
+            'name': name,
+            'data': properties ?? {},
+            'url': '/',
+          },
+          'type': 'event',
+        }),
       );
     } catch (_) {
-      // Swallow — analytics must never disrupt UX.
-    }
-  }
-
-  /// Identify a user. Only fires when consent has been granted.
-  Future<void> identifyUser(
-    String userId, {
-    Map<String, dynamic>? properties,
-  }) async {
-    if (!_initialized || !_consentGranted) return;
-
-    try {
-      final posthog = Posthog();
-      await posthog.identify(
-        userId: userId,
-        userProperties: properties,
-      );
-    } catch (_) {
-      // Swallow.
+      // Silently fail -- analytics should never crash the app.
     }
   }
 
   /// Track a screen view.
   Future<void> trackScreen(String screenName) async {
-    if (!_initialized || !_consentGranted) return;
-
-    try {
-      final posthog = Posthog();
-      await posthog.screen(
-        screenName: screenName,
-      );
-    } catch (_) {
-      // Swallow.
-    }
+    await trackEvent('screen_view', properties: {'screen': screenName});
   }
 }

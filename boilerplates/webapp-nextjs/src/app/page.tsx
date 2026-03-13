@@ -1,13 +1,13 @@
-import { isServerEnabled } from "@/lib/feature-flags-server";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import { HomeContent } from "./home-content";
 
 // ---------------------------------------------------------------------------
 // Server Component -- landing page
 // ---------------------------------------------------------------------------
 
-export default async function HomePage() {
-  // Evaluate a feature flag on the server.
-  const showBetaBanner = await isServerEnabled("beta-banner");
+export default function HomePage() {
+  // Evaluate a feature flag via environment variable.
+  const showBetaBanner = isFeatureEnabled("beta_banner");
 
   return (
     <main
@@ -24,7 +24,8 @@ export default async function HomePage() {
         Toolbox Web App
       </h1>
       <p style={{ color: "#64748b", marginBottom: "2rem" }}>
-        Next.js boilerplate with self-hosted PostHog, Sentry, and Unleash.
+        Next.js boilerplate with Umami analytics, GlitchTip error tracking, and
+        ENV-based feature flags.
       </p>
 
       {showBetaBanner && (
@@ -38,7 +39,7 @@ export default async function HomePage() {
           }}
         >
           <strong>Beta:</strong> This feature banner is controlled by the{" "}
-          <code>beta-banner</code> Unleash flag (server-evaluated).
+          <code>NEXT_PUBLIC_FEATURE_BETA_BANNER</code> environment variable.
         </div>
       )}
 

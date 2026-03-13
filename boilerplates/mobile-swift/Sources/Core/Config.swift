@@ -6,55 +6,35 @@ import Foundation
 /// All keys are injected at build time so no secrets live in source control.
 enum Config {
 
-    // MARK: - PostHog (Analytics)
+    // MARK: - Umami (Analytics)
 
-    static let postHogAPIKey: String = {
-        guard let key = Bundle.main.infoDictionary?["POSTHOG_API_KEY"] as? String,
-              !key.isEmpty, !key.hasPrefix("$(") else {
-            assertionFailure("POSTHOG_API_KEY not set in Info.plist / xcconfig")
-            return ""
-        }
-        return key
-    }()
-
-    static let postHogHost: String = {
-        guard let host = Bundle.main.infoDictionary?["POSTHOG_HOST"] as? String,
+    static let umamiHost: String = {
+        guard let host = Bundle.main.infoDictionary?["UMAMI_HOST"] as? String,
               !host.isEmpty, !host.hasPrefix("$(") else {
-            assertionFailure("POSTHOG_HOST not set in Info.plist / xcconfig")
-            return "https://posthog.example.com"
+            assertionFailure("UMAMI_HOST not set in Info.plist / xcconfig")
+            return "https://track.sorevo.de"
         }
         return host
     }()
 
-    // MARK: - Sentry (Error Tracking)
+    static let umamiWebsiteId: String = {
+        guard let id = Bundle.main.infoDictionary?["UMAMI_WEBSITE_ID"] as? String,
+              !id.isEmpty, !id.hasPrefix("$(") else {
+            assertionFailure("UMAMI_WEBSITE_ID not set in Info.plist / xcconfig")
+            return ""
+        }
+        return id
+    }()
 
-    static let sentryDSN: String = {
-        guard let dsn = Bundle.main.infoDictionary?["SENTRY_DSN"] as? String,
+    // MARK: - GlitchTip (Error Tracking, Sentry-compatible)
+
+    static let glitchtipDSN: String = {
+        guard let dsn = Bundle.main.infoDictionary?["GLITCHTIP_DSN"] as? String,
               !dsn.isEmpty, !dsn.hasPrefix("$(") else {
-            assertionFailure("SENTRY_DSN not set in Info.plist / xcconfig")
+            assertionFailure("GLITCHTIP_DSN not set in Info.plist / xcconfig")
             return ""
         }
         return dsn
-    }()
-
-    // MARK: - Unleash (Feature Flags)
-
-    static let unleashURL: String = {
-        guard let url = Bundle.main.infoDictionary?["UNLEASH_URL"] as? String,
-              !url.isEmpty, !url.hasPrefix("$(") else {
-            assertionFailure("UNLEASH_URL not set in Info.plist / xcconfig")
-            return "https://unleash.example.com/api/frontend"
-        }
-        return url
-    }()
-
-    static let unleashClientKey: String = {
-        guard let key = Bundle.main.infoDictionary?["UNLEASH_CLIENT_KEY"] as? String,
-              !key.isEmpty, !key.hasPrefix("$(") else {
-            assertionFailure("UNLEASH_CLIENT_KEY not set in Info.plist / xcconfig")
-            return ""
-        }
-        return key
     }()
 
     // MARK: - UserDefaults Keys

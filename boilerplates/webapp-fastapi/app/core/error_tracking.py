@@ -1,14 +1,16 @@
-"""Sentry error tracking helpers for the self-hosted instance.
+"""GlitchTip (Sentry-compatible) error tracking helpers.
 
 Provides a thin initialisation wrapper and convenience functions so that
 the rest of the codebase does not import ``sentry_sdk`` directly.
+GlitchTip uses the standard Sentry SDK -- only the DSN points to the
+self-hosted GlitchTip instance.
 
 PII scrubbing
 -------------
 The ``before_send`` hook inspects the event's request headers for an
 ``X-Consent`` header.  When the header is absent or not set to
 ``"granted"`` every user-related field is stripped from the event before
-it leaves the process.  This keeps the Sentry instance DSGVO-compliant
+it leaves the process.  This keeps the GlitchTip instance DSGVO-compliant
 even when users have not given consent.
 """
 
@@ -66,14 +68,14 @@ def _before_send(
     return event
 
 
-def init_sentry(*, dsn: str, environment: str = "production") -> None:
-    """Initialize the Sentry SDK with the self-hosted DSN.
+def init_error_tracking(*, dsn: str, environment: str = "production") -> None:
+    """Initialize GlitchTip error tracking via the Sentry SDK.
 
     Silently skips initialization when *dsn* is empty so that local
-    development works without a Sentry instance.
+    development works without a GlitchTip instance.
     """
     if not dsn:
-        logger.warning("Sentry DSN is empty — error tracking will be disabled")
+        logger.warning("GlitchTip DSN is empty -- error tracking will be disabled")
         return
 
     sentry_sdk.init(
@@ -88,16 +90,16 @@ def init_sentry(*, dsn: str, environment: str = "production") -> None:
         ],
         send_default_pii=False,
     )
-    logger.info("Sentry error tracking initialized (environment=%s)", environment)
+    logger.info("GlitchTip error tracking initialized (environment=%s)", environment)
 
 
 def capture_message(msg: str, level: str = "info") -> None:
-    """Send an informational message to Sentry."""
+    """Send an informational message to GlitchTip."""
     sentry_sdk.capture_message(msg, level=level)
 
 
 def capture_exception(exc: BaseException | None = None) -> None:
-    """Report an exception to Sentry.
+    """Report an exception to GlitchTip.
 
     When *exc* is ``None`` the current ``sys.exc_info()`` is used.
     """

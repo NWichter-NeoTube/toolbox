@@ -52,9 +52,9 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NEXT_PUBLIC_UMAMI_HOST || ""}`,
               "style-src 'self' 'unsafe-inline'",
-              `connect-src 'self' ${process.env.NEXT_PUBLIC_POSTHOG_HOST || ""} ${process.env.NEXT_PUBLIC_SENTRY_DSN ? new URL(process.env.NEXT_PUBLIC_SENTRY_DSN).origin : ""} ${process.env.NEXT_PUBLIC_UNLEASH_URL ? new URL(process.env.NEXT_PUBLIC_UNLEASH_URL).origin : ""}`,
+              `connect-src 'self' ${process.env.NEXT_PUBLIC_UMAMI_HOST || ""} ${process.env.NEXT_PUBLIC_GLITCHTIP_DSN ? new URL(process.env.NEXT_PUBLIC_GLITCHTIP_DSN).origin : ""}`,
               "img-src 'self' data: blob:",
               "font-src 'self'",
               "frame-ancestors 'none'",
@@ -81,16 +81,16 @@ if (process.env.ANALYZE === "true") {
 }
 
 // ---------------------------------------------------------------------------
-// Sentry webpack plugin
+// GlitchTip (Sentry-compatible) webpack plugin
 // ---------------------------------------------------------------------------
 export default withSentryConfig(config, {
   // Suppresses source map uploading logs during build.
   silent: true,
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
+  org: process.env.GLITCHTIP_ORG,
+  project: process.env.GLITCHTIP_PROJECT,
 
   // Upload source maps only when an auth token is present.
-  authToken: process.env.SENTRY_AUTH_TOKEN,
+  authToken: process.env.GLITCHTIP_AUTH_TOKEN,
 
   // Automatically tree-shake Sentry logger statements to reduce bundle size.
   disableLogger: true,

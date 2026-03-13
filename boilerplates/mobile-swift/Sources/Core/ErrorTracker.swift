@@ -3,8 +3,9 @@ import Sentry
 
 // MARK: - Error Tracker
 
-/// Thin, consent-aware wrapper around the Sentry SDK.
+/// Thin, consent-aware wrapper around the Sentry SDK for GlitchTip.
 ///
+/// GlitchTip is Sentry-compatible, so the same Sentry SDK is used.
 /// Call `ErrorTracker.initialize(dsn:)` once at app launch.
 /// User context is only attached when the user has granted error-tracking
 /// consent (DSGVO / GDPR compliant).
@@ -12,10 +13,10 @@ enum ErrorTracker {
 
     // MARK: - Configuration
 
-    /// Initialise Sentry.  Call this in the `App.init()`.
+    /// Initialise GlitchTip (Sentry-compatible). Call this in the `App.init()`.
     static func initialize(dsn: String) {
         guard !dsn.isEmpty else {
-            print("[ErrorTracker] Sentry DSN is empty -- skipping initialisation.")
+            print("[ErrorTracker] GlitchTip DSN is empty -- skipping initialisation.")
             return
         }
 
@@ -44,7 +45,7 @@ enum ErrorTracker {
 
     // MARK: - Error Capture
 
-    /// Capture an `Error` as a Sentry event.
+    /// Capture an `Error` as an event.
     static func capture(_ error: Error) {
         SentrySDK.capture(error: error)
     }
@@ -67,7 +68,7 @@ enum ErrorTracker {
 
     // MARK: - User Context (Consent-Aware)
 
-    /// Set user context on the Sentry scope.
+    /// Set user context on the scope.
     /// Only call this when error-tracking consent has been granted.
     static func setUser(id: String, email: String? = nil) {
         let sentryUser = Sentry.User(userId: id)

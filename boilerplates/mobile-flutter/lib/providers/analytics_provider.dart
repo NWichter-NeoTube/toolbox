@@ -28,7 +28,7 @@ class AnalyticsProvider extends ChangeNotifier {
   /// Whether the user has granted **error-tracking** consent.
   bool get errorTrackingConsentGranted => _errorTracking.consentGranted;
 
-  /// Convenience — true when at least one consent type is active.
+  /// Convenience -- true when at least one consent type is active.
   bool get hasAnyConsent =>
       analyticsConsentGranted || errorTrackingConsentGranted;
 
@@ -89,7 +89,7 @@ class AnalyticsProvider extends ChangeNotifier {
   Future<void> trackScreen(String screenName) =>
       _analytics.trackScreen(screenName);
 
-  /// Capture an exception via Sentry.
+  /// Capture an exception via GlitchTip.
   Future<void> captureException(
     dynamic exception, {
     dynamic stackTrace,

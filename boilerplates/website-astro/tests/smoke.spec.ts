@@ -105,16 +105,15 @@ test.describe("Smoke tests", () => {
   // -----------------------------------------------------------------------
 
   test("analytics module is loaded on the page", async ({ page }) => {
-    // PostHog key is not configured in test env, so the module should log
-    // a warning. We verify the script executed by checking the console.
+    // Umami host is not configured in test env, so the script tag won't be
+    // injected. We verify no uncaught exceptions occurred.
     const messages: string[] = [];
     page.on("console", (msg) => messages.push(msg.text()));
 
     await page.reload();
     await page.waitForTimeout(500);
 
-    // The analytics module should have run (even if PostHog is not configured).
-    // We simply verify no uncaught exceptions occurred.
+    // The analytics component should have run without errors.
     const errors = messages.filter((m) => m.toLowerCase().includes("uncaught"));
     expect(errors).toHaveLength(0);
   });

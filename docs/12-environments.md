@@ -15,9 +15,9 @@ Three environments, each with a clear purpose:
 | **Where**    | Local (Docker Compose)       | Coolify (same server)           | Coolify (same or separate server) |
 | **Domain**   | `localhost:3000`             | `staging.example.com`           | `example.com`                  |
 | **Data**     | Seed data / fixtures         | Anonymized prod copy            | Real user data                 |
-| **PostHog**  | Separate project             | Separate project                | Separate project               |
-| **Sentry**   | Separate project             | Separate project                | Separate project               |
-| **Unleash**  | `development` environment    | `staging` environment           | `production` environment       |
+| **Umami**    | Separate website ID          | Separate website ID             | Separate website ID            |
+| **GlitchTip**| Separate project             | Separate project                | Separate project               |
+| **Feature Flags** | ENV-based (`FEATURE_*=true/false`) | ENV-based (`FEATURE_*=true/false`) | ENV-based (`FEATURE_*=true/false`) |
 | **Infisical**| `dev` environment            | `staging` environment           | `production` environment       |
 | **Deploys**  | Manual (`docker compose up`) | Auto (push to `staging` branch) | Manual approval (merge to `main`) |
 | **Purpose**  | Development and debugging    | Integration testing, QA         | Real users, real traffic       |
@@ -26,7 +26,8 @@ Three environments, each with a clear purpose:
 - Dev never connects to production databases.
 - Staging data is either synthetic or anonymized copies of production.
 - Production secrets are only in the `production` environment of Infisical.
-- Each environment has its own PostHog and Sentry projects to keep data clean.
+- Each environment has its own Umami website ID and GlitchTip project to keep data clean.
+- Feature flags are controlled via `FEATURE_*` environment variables (no external service needed).
 
 ---
 
@@ -70,16 +71,16 @@ APP_URL=http://localhost:3000
 # Database (local Postgres)
 DATABASE_URL=postgresql://toolbox:localpassword@localhost:5432/myproject_dev
 
-# PostHog (use staging or a separate dev project)
-NEXT_PUBLIC_POSTHOG_KEY=phc_dev_project_key
-NEXT_PUBLIC_POSTHOG_HOST=https://posthog.example.com
+# Umami (use staging or a separate dev website ID)
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=dev-website-id
+NEXT_PUBLIC_UMAMI_URL=https://track.example.com
 
-# Sentry (use staging or a separate dev project)
-NEXT_PUBLIC_SENTRY_DSN=https://devkey@sentry.example.com/2
+# GlitchTip (use staging or a separate dev project)
+NEXT_PUBLIC_GLITCHTIP_DSN=https://devkey@logs.example.com/2
 
-# Unleash (development environment)
-UNLEASH_SERVER_URL=https://unleash.example.com/api
-UNLEASH_CLIENT_KEY=myproject:development.dev-api-token
+# Feature flags (ENV-based)
+FEATURE_NEW_ONBOARDING=false
+FEATURE_DARK_MODE=true
 
 # Redis (local)
 REDIS_URL=redis://localhost:6379
@@ -135,8 +136,8 @@ If running local databases is too complex, point your dev environment at the sha
 # .env (simplified — points to shared staging services)
 DATABASE_URL=postgresql://toolbox:stagingpassword@staging-db.example.com:5432/myproject_staging
 REDIS_URL=redis://:stagingpassword@staging-redis.example.com:6379
-NEXT_PUBLIC_POSTHOG_KEY=phc_staging_project_key
-NEXT_PUBLIC_SENTRY_DSN=https://stagingkey@sentry.example.com/3
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=staging-website-id
+NEXT_PUBLIC_GLITCHTIP_DSN=https://stagingkey@logs.example.com/3
 ```
 
 > **Warning:** Only use this for quick development. Never modify staging data carelessly. Prefer local databases for any destructive testing.
@@ -231,19 +232,19 @@ git push origin staging
 # → Coolify detects the push and auto-deploys to staging.example.com
 ```
 
-### 3.5 Separate PostHog/Sentry Projekte fuer Staging
+### 3.5 Separate Umami/GlitchTip Projekte fuer Staging
 
-Create dedicated PostHog and Sentry projects for staging to keep staging data out of production analytics:
+Create dedicated Umami websites and GlitchTip projects for staging to keep staging data out of production analytics:
 
-**PostHog:**
-1. In PostHog, create a new project called "My Project (Staging)".
-2. Copy the staging project API key.
-3. Add it to Infisical under the `staging` environment as `NEXT_PUBLIC_POSTHOG_KEY`.
+**Umami:**
+1. In Umami, create a new website called "My Project (Staging)".
+2. Copy the staging website ID.
+3. Add it to Infisical under the `staging` environment as `NEXT_PUBLIC_UMAMI_WEBSITE_ID`.
 
-**Sentry:**
-1. In Sentry, create a new project called "my-project-staging".
+**GlitchTip:**
+1. In GlitchTip, create a new project called "my-project-staging".
 2. Copy the staging DSN.
-3. Add it to Infisical under the `staging` environment as `NEXT_PUBLIC_SENTRY_DSN`.
+3. Add it to Infisical under the `staging` environment as `NEXT_PUBLIC_GLITCHTIP_DSN`.
 
 This ensures staging errors and staging analytics never pollute your production dashboards.
 
@@ -351,9 +352,9 @@ Each environment has its own set of secrets. The key names are the same, but the
 | Secret Key                 | dev                               | staging                          | production                    |
 |----------------------------|-----------------------------------|----------------------------------|-------------------------------|
 | `DATABASE_URL`             | `postgresql://...localhost/dev`   | `postgresql://...server/staging` | `postgresql://...server/prod` |
-| `NEXT_PUBLIC_POSTHOG_KEY`  | `phc_dev_key`                     | `phc_staging_key`                | `phc_prod_key`                |
-| `NEXT_PUBLIC_SENTRY_DSN`   | `https://devkey@.../2`            | `https://stagingkey@.../3`       | `https://prodkey@.../1`       |
-| `UNLEASH_CLIENT_KEY`       | `project:development.xxx`        | `project:staging.xxx`            | `project:production.xxx`      |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | `dev-website-id`              | `staging-website-id`             | `prod-website-id`             |
+| `NEXT_PUBLIC_GLITCHTIP_DSN`| `https://devkey@.../2`            | `https://stagingkey@.../3`       | `https://prodkey@.../1`       |
+| `FEATURE_NEW_ONBOARDING`  | `true`                            | `true`                           | `false`                       |
 | `STRIPE_SECRET_KEY`        | `sk_test_xxx`                     | `sk_test_xxx`                    | `sk_live_xxx`                 |
 
 ### 5.3 Secrets per CLI abrufen
@@ -397,78 +398,67 @@ Create machine-identity tokens for automated pipelines:
 
 ---
 
-## 6. Feature-Flag Environments
+## 6. Feature-Flag Environments (ENV-based)
 
-Unleash environments let you control which flags are active in each deployment stage.
+Feature flags are managed via environment variables with the `FEATURE_` prefix. No external service is needed -- flags are set per environment in Infisical/Coolify.
 
-### 6.1 Unleash Environments konfigurieren
+### 6.1 Feature Flags pro Environment konfigurieren
 
-Unleash has three built-in environments: `development`, `staging` (you may need to create this), and `production`.
+Each environment has its own set of `FEATURE_*` variables in Infisical:
 
-```bash
-# Create the staging environment if it does not exist
-curl -s -X POST "https://unleash.example.com/api/admin/environments" \
-  -H "Authorization: Bearer $UNLEASH_ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "staging",
-    "type": "staging",
-    "enabled": true
-  }' | jq .
+| Flag                        | dev    | staging | production |
+|-----------------------------|--------|---------|------------|
+| `FEATURE_NEW_SEARCH_UI`    | `true` | `true`  | `false`    |
+| `FEATURE_DARK_MODE`        | `true` | `true`  | `true`     |
+| `FEATURE_BETA_CHECKOUT`    | `true` | `true`  | `false`    |
+
+### 6.2 Feature Flags im Code verwenden
+
+```typescript
+// lib/features.ts
+export function isFeatureEnabled(flag: string): boolean {
+  return process.env[`FEATURE_${flag.toUpperCase().replace(/-/g, '_')}`] === 'true';
+}
 ```
 
-### 6.2 API Tokens pro Environment erstellen
+```typescript
+// Usage in components
+import { isFeatureEnabled } from '@/lib/features';
 
-Each environment needs its own client API token:
-
-```bash
-# Create a client token for the staging environment
-curl -s -X POST "https://unleash.example.com/api/admin/api-tokens" \
-  -H "Authorization: Bearer $UNLEASH_ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "my-project-staging",
-    "type": "client",
-    "environment": "staging",
-    "projects": ["my-project"]
-  }' | jq .
-
-# Create a client token for the production environment
-curl -s -X POST "https://unleash.example.com/api/admin/api-tokens" \
-  -H "Authorization: Bearer $UNLEASH_ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "my-project-production",
-    "type": "client",
-    "environment": "production",
-    "projects": ["my-project"]
-  }' | jq .
+export function SearchPage() {
+  if (isFeatureEnabled('NEW_SEARCH_UI')) {
+    return <NewSearchUI />;
+  }
+  return <LegacySearchUI />;
+}
 ```
 
-Store each token in Infisical under the matching environment:
-- `UNLEASH_CLIENT_KEY` in `staging` environment → staging token
-- `UNLEASH_CLIENT_KEY` in `production` environment → production token
+```python
+# Python (FastAPI)
+import os
+
+def is_feature_enabled(flag: str) -> bool:
+    return os.getenv(f"FEATURE_{flag.upper().replace('-', '_')}", "false") == "true"
+```
 
 ### 6.3 Sichere Rollouts: Staging zuerst, dann Production
 
 Feature flags enable a safe rollout workflow:
 
 ```
-1. Create flag "new-search-ui" in Unleash
-    ↓
-2. Enable in "development" environment → test locally
-    ↓
-3. Enable in "staging" environment → test on staging server
-    ↓
+1. Add FEATURE_NEW_SEARCH_UI=true to dev environment in Infisical
+    |
+2. Test locally
+    |
+3. Add FEATURE_NEW_SEARCH_UI=true to staging environment in Infisical
+    |
 4. QA approves on staging
-    ↓
-5. Enable in "production" environment with gradual rollout (10%)
-    ↓
-6. Monitor PostHog + Sentry for 24 hours
-    ↓
-7. Increase to 50%, then 100%
-    ↓
-8. Flag stable at 100% for 1 week → remove flag from code
+    |
+5. Add FEATURE_NEW_SEARCH_UI=true to production environment in Infisical
+    |
+6. Monitor Umami + GlitchTip for 24 hours
+    |
+7. Flag stable for 1 week -> remove flag from code and env vars
 ```
 
 This means the flag can be enabled on staging while remaining disabled in production. You test the full code path on staging without any risk to production users.
@@ -600,11 +590,9 @@ Feature Branch
     │       ↓
     │    Coolify deploys to example.com (manual trigger or auto)
     │       ↓
-    │    Sentry release created + source maps uploaded
+    │    GlitchTip release created + source maps uploaded
     │       ↓
-    │    PostHog deploy event captured
-    │       ↓
-    └──→ Post-deploy monitoring (Sentry, PostHog, Uptime Kuma)
+    └──→ Post-deploy monitoring (GlitchTip, Umami, Uptime Kuma)
 ```
 
 ### 8.2 GitHub Actions Beispiel
@@ -676,33 +664,14 @@ jobs:
           curl -s -X POST "${{ secrets.COOLIFY_API_URL }}/api/v1/applications/${{ secrets.COOLIFY_PRODUCTION_UUID }}/restart" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" | jq .
 
-      - name: Create Sentry release
+      - name: Create GlitchTip release
         env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: your-org
-          SENTRY_PROJECT: my-project
+          GLITCHTIP_DSN: ${{ secrets.GLITCHTIP_DSN }}
         run: |
           VERSION=$(git rev-parse --short HEAD)
-          npx sentry-cli releases new "$VERSION"
-          npx sentry-cli releases set-commits "$VERSION" --auto
-          npx sentry-cli releases deploys "$VERSION" new -e production
-          npx sentry-cli releases finalize "$VERSION"
-
-      - name: Notify PostHog of deployment
-        run: |
-          curl -s -X POST "https://posthog.example.com/capture/" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "api_key": "${{ secrets.POSTHOG_PROJECT_KEY }}",
-              "event": "deployment",
-              "distinct_id": "ci-pipeline",
-              "properties": {
-                "environment": "production",
-                "version": "'$(git rev-parse --short HEAD)'",
-                "branch": "main",
-                "triggered_by": "'${{ github.actor }}'"
-              }
-            }'
+          echo "Release $VERSION deployed to production"
+          # GlitchTip automatically tracks releases via the DSN
+          # Source maps can be uploaded via the GlitchTip API if needed
 ```
 
 ### 8.3 GitHub Environments konfigurieren
@@ -722,8 +691,7 @@ Set up GitHub Environments to control deployment approvals:
 | `COOLIFY_API_TOKEN`         | Your Coolify token         | Your Coolify token           |
 | `COOLIFY_STAGING_UUID`      | Staging resource UUID      | (not needed)                 |
 | `COOLIFY_PRODUCTION_UUID`   | (not needed)               | Production resource UUID     |
-| `SENTRY_AUTH_TOKEN`         | (not needed)               | Sentry auth token            |
-| `POSTHOG_PROJECT_KEY`       | Staging project key        | Production project key       |
+| `GLITCHTIP_DSN`             | (not needed)               | GlitchTip DSN                |
 | `INFISICAL_MACHINE_TOKEN`   | Staging token              | Production token             |
 
 ### 8.4 Environment-Variablen Zusammenfassung
@@ -747,7 +715,7 @@ GitHub Secrets (for CI/CD only)
     ├──→ COOLIFY_API_TOKEN, COOLIFY_API_URL (shared)
     ├──→ COOLIFY_STAGING_UUID (staging environment)
     ├──→ COOLIFY_PRODUCTION_UUID (production environment)
-    ├──→ SENTRY_AUTH_TOKEN (production environment)
+    ├──→ GLITCHTIP_DSN (production environment)
     └──→ INFISICAL_MACHINE_TOKEN (per environment)
 ```
 

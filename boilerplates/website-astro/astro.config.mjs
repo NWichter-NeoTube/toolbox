@@ -9,11 +9,11 @@ export default defineConfig({
   integrations: [
     sitemap(),
     sentry({
-      dsn: process.env.PUBLIC_SENTRY_DSN,
+      dsn: process.env.PUBLIC_GLITCHTIP_DSN,
       sourceMapsUploadOptions: {
-        enabled: !!process.env.SENTRY_AUTH_TOKEN,
-        project: process.env.SENTRY_PROJECT,
-        org: process.env.SENTRY_ORG,
+        enabled: !!process.env.GLITCHTIP_AUTH_TOKEN,
+        project: process.env.GLITCHTIP_PROJECT,
+        org: process.env.GLITCHTIP_ORG,
       },
       // Client-side SDK config — minimal by default, consent-aware setup
       // happens in src/lib/error-tracking.ts at runtime.
@@ -23,17 +23,11 @@ export default defineConfig({
 
   vite: {
     define: {
-      "import.meta.env.PUBLIC_POSTHOG_KEY": JSON.stringify(
-        process.env.PUBLIC_POSTHOG_KEY ?? "",
+      "import.meta.env.PUBLIC_UMAMI_HOST": JSON.stringify(
+        process.env.PUBLIC_UMAMI_HOST ?? "",
       ),
-      "import.meta.env.PUBLIC_POSTHOG_HOST": JSON.stringify(
-        process.env.PUBLIC_POSTHOG_HOST ?? "",
-      ),
-      "import.meta.env.PUBLIC_UNLEASH_URL": JSON.stringify(
-        process.env.PUBLIC_UNLEASH_URL ?? "",
-      ),
-      "import.meta.env.PUBLIC_UNLEASH_CLIENT_KEY": JSON.stringify(
-        process.env.PUBLIC_UNLEASH_CLIENT_KEY ?? "",
+      "import.meta.env.PUBLIC_UMAMI_WEBSITE_ID": JSON.stringify(
+        process.env.PUBLIC_UMAMI_WEBSITE_ID ?? "",
       ),
     },
   },

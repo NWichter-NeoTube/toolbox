@@ -65,7 +65,7 @@
           <input type="checkbox" id="cc-opt-analytics" />
           <span class="cc-toggle__label">
             <strong>Analytics</strong>
-            <small>Helps us understand how visitors interact with the site (PostHog).</small>
+            <small>Helps us understand how visitors interact with the site (Umami).</small>
           </span>
         </label>
       </div>
@@ -75,7 +75,7 @@
           <input type="checkbox" id="cc-opt-errors" />
           <span class="cc-toggle__label">
             <strong>Error Tracking</strong>
-            <small>Sends detailed error reports to help us fix bugs faster (Sentry).</small>
+            <small>Sends detailed error reports to help us fix bugs faster (GlitchTip).</small>
           </span>
         </label>
       </div>
@@ -358,7 +358,7 @@
     }
 
     // Error tracking consent is handled reactively via the "toolbox:consent"
-    // event dispatched by grantConsent / revokeConsent. The Sentry module
+    // event dispatched by grantConsent / revokeConsent. The GlitchTip module
     // listens for this event and adjusts PII handling accordingly.
 
     hideBanner();

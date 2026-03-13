@@ -3,29 +3,18 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 
 @pytest.fixture(autouse=True)
-def _mock_posthog() -> Any:
-    """Patch the PostHog SDK so tests never make real HTTP calls."""
-    with patch("app.core.analytics.posthog") as mock_ph:
-        mock_ph.api_key = ""
-        mock_ph.host = ""
-        yield mock_ph
-
-
-@pytest.fixture(autouse=True)
-def _mock_unleash() -> Any:
-    """Replace the UnleashClient constructor with a no-op mock."""
-    mock_client = MagicMock()
-    mock_client.is_enabled.return_value = False
-    mock_client.get_variant.return_value = {}
-    with patch("app.core.feature_flags.UnleashClient", return_value=mock_client):
-        yield mock_client
+def _mock_analytics() -> Any:
+    """Patch the httpx client so tests never make real HTTP calls to Umami."""
+    with patch("app.core.analytics.get_client") as mock_get:
+        mock_get.return_value = None
+        yield mock_get
 
 
 @pytest.fixture(autouse=True)

@@ -1,14 +1,14 @@
 /**
- * Sentry browser SDK initialisation -- consent-aware.
+ * GlitchTip (Sentry-compatible) browser SDK initialisation -- consent-aware.
  *
  * This file is automatically loaded by @sentry/nextjs on the client side.
  *
  * DSGVO/GDPR considerations:
- *  - Sentry always captures errors (this is a *legitimate interest* use-case
+ *  - GlitchTip always captures errors (this is a *legitimate interest* use-case
  *    recognised by GDPR Art. 6(1)(f)) but we strip PII unless the user has
  *    granted consent.
  *  - When consent is granted we attach the user's distinct ID and allow
- *    session replay / breadcrumbs that may contain PII.
+ *    breadcrumbs that may contain PII.
  *  - When consent is revoked we clear the user scope and disable PII
  *    collection.
  */
@@ -29,36 +29,24 @@ function hasAnalyticsConsent(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Initialise Sentry
+// Initialise GlitchTip (Sentry-compatible)
 // ---------------------------------------------------------------------------
 
-const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
+const GLITCHTIP_DSN = process.env.NEXT_PUBLIC_GLITCHTIP_DSN;
 
-if (SENTRY_DSN) {
+if (GLITCHTIP_DSN) {
   const consentGranted = hasAnalyticsConsent();
 
   Sentry.init({
-    dsn: SENTRY_DSN,
+    dsn: GLITCHTIP_DSN,
     environment: process.env.NODE_ENV,
 
     // Send errors regardless of consent (legitimate interest), but strip PII
     // when consent is not granted.
     sendDefaultPii: consentGranted,
 
-    // Session replay -- only when consent is granted.
-    replaysSessionSampleRate: consentGranted ? 0.1 : 0,
-    replaysOnErrorSampleRate: consentGranted ? 1.0 : 0,
-
     // Performance monitoring
     tracesSampleRate: 0.2,
-
-    integrations: [
-      Sentry.replayIntegration({
-        // Mask all text and block all media by default for privacy.
-        maskAllText: !consentGranted,
-        blockAllMedia: !consentGranted,
-      }),
-    ],
 
     beforeSend(event) {
       // Strip user data if consent has not been granted.

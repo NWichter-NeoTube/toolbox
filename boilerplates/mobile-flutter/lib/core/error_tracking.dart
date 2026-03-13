@@ -4,17 +4,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
 
-/// Consent-aware wrapper around self-hosted Sentry for error tracking.
+/// Consent-aware wrapper around self-hosted GlitchTip (Sentry-compatible) for
+/// error tracking.
 ///
 /// User context is only attached after the user grants error-tracking consent
-/// (DSGVO/GDPR compliance).
+/// (DSGVO/GDPR compliance). GlitchTip uses the standard Sentry SDK, so the
+/// integration is fully compatible.
 class ErrorTrackingService {
   ErrorTrackingService();
 
   bool _initialized = false;
   bool _consentGranted = false;
 
-  /// Whether Sentry has been initialized.
+  /// Whether GlitchTip/Sentry has been initialized.
   bool get isInitialized => _initialized;
 
   /// Whether the user has granted error-tracking consent.
@@ -24,9 +26,9 @@ class ErrorTrackingService {
   // Lifecycle
   // ---------------------------------------------------------------------------
 
-  /// Initialize Sentry Flutter.
+  /// Initialize GlitchTip via the Sentry Flutter SDK.
   ///
-  /// This should be called **before** `runApp` — see `main.dart` for the
+  /// This should be called **before** `runApp` -- see `main.dart` for the
   /// canonical pattern using [SentryFlutter.init].
   ///
   /// After initialization the service checks SharedPreferences for a stored
@@ -50,15 +52,15 @@ class ErrorTrackingService {
   // Consent management
   // ---------------------------------------------------------------------------
 
-  /// Grant error-tracking consent — allows user context to be attached to
-  /// Sentry events.
+  /// Grant error-tracking consent -- allows user context to be attached to
+  /// GlitchTip events.
   Future<void> grantConsent() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(AppConfig.consentErrorTrackingKey, true);
     _consentGranted = true;
   }
 
-  /// Revoke error-tracking consent — removes user context from Sentry.
+  /// Revoke error-tracking consent -- removes user context from GlitchTip.
   Future<void> revokeConsent() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(AppConfig.consentErrorTrackingKey, false);
@@ -77,7 +79,7 @@ class ErrorTrackingService {
   // Tracking helpers
   // ---------------------------------------------------------------------------
 
-  /// Capture an exception in Sentry.
+  /// Capture an exception in GlitchTip (via Sentry SDK).
   Future<void> captureException(
     dynamic exception, {
     dynamic stackTrace,
@@ -90,7 +92,7 @@ class ErrorTrackingService {
         stackTrace: stackTrace,
       );
     } catch (e) {
-      debugPrint('ErrorTrackingService: failed to capture exception — $e');
+      debugPrint('ErrorTrackingService: failed to capture exception -- $e');
     }
   }
 
@@ -111,7 +113,7 @@ class ErrorTrackingService {
     }
   }
 
-  /// Set the user context on Sentry (only if consent was granted).
+  /// Set the user context on GlitchTip (only if consent was granted).
   void setUser({required String id, String? email}) {
     if (!_initialized || !_consentGranted) return;
 

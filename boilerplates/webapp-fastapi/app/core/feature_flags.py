@@ -1,119 +1,40 @@
-"""Unleash feature flag client for the self-hosted instance.
+"""Feature flags via environment variables.
 
-Provides a resilient wrapper around the UnleashClient SDK.  When the
-Unleash server is unreachable every helper degrades gracefully — features
-default to *disabled* and variants return a safe empty dict.
+A lightweight, dependency-free feature flag mechanism.  Each flag is
+controlled by an environment variable with the ``FEATURE_`` prefix:
+
+    FEATURE_DARK_MODE=true
+    FEATURE_NEWSLETTER=false
+
+This approach requires no external service -- flags are read directly
+from the process environment.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any
-
-from UnleashClient import UnleashClient
+import os
 
 logger = logging.getLogger(__name__)
 
 
-class FeatureFlagClient:
-    """Wrapper around the Unleash Python SDK.
+def is_enabled(flag: str) -> bool:
+    """Check if a feature flag is enabled via environment variable.
 
-    Call :meth:`initialize` during application startup and :meth:`shutdown`
-    on teardown.
+    Env var format: FEATURE_{FLAG_NAME}=true/false
+    Example: FEATURE_DARK_MODE=true
     """
-
-    def __init__(self) -> None:
-        self._client: UnleashClient | None = None
-
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
-
-    def initialize(
-        self,
-        *,
-        url: str,
-        api_token: str,
-        app_name: str,
-    ) -> None:
-        """Create and start the Unleash client."""
-        if not url or not api_token:
-            logger.warning("Unleash URL or API token is empty — feature flags will be disabled")
-            return
-
-        try:
-            self._client = UnleashClient(
-                url=url,
-                app_name=app_name,
-                custom_headers={"Authorization": api_token},
-            )
-            self._client.initialize_client()
-            logger.info("Unleash feature flag client initialized (url=%s, app=%s)", url, app_name)
-        except Exception:
-            logger.exception("Failed to initialize Unleash client")
-            self._client = None
-
-    def shutdown(self) -> None:
-        """Destroy the Unleash client."""
-        if self._client is not None:
-            try:
-                self._client.destroy()
-            except Exception:
-                logger.exception("Error while shutting down Unleash client")
-            finally:
-                self._client = None
-                logger.info("Unleash feature flag client shut down")
-
-    # ------------------------------------------------------------------
-    # Feature flag helpers
-    # ------------------------------------------------------------------
-
-    def is_enabled(
-        self,
-        feature_name: str,
-        context: dict[str, Any] | None = None,
-    ) -> bool:
-        """Check whether *feature_name* is enabled.
-
-        Returns ``False`` when the Unleash client is unavailable so that
-        features degrade safely.
-        """
-        if self._client is None:
-            logger.debug(
-                "Unleash client not available — defaulting '%s' to disabled",
-                feature_name,
-            )
-            return False
-
-        try:
-            return self._client.is_enabled(feature_name, context or {})
-        except Exception:
-            logger.exception("Error evaluating feature flag '%s'", feature_name)
-            return False
-
-    def get_variant(
-        self,
-        feature_name: str,
-        context: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Return the variant for *feature_name*.
-
-        Returns an empty dict when Unleash is unavailable.
-        """
-        if self._client is None:
-            logger.debug(
-                "Unleash client not available — returning empty variant for '%s'",
-                feature_name,
-            )
-            return {}
-
-        try:
-            variant = self._client.get_variant(feature_name, context or {})
-            return variant if isinstance(variant, dict) else {}
-        except Exception:
-            logger.exception("Error fetching variant for '%s'", feature_name)
-            return {}
+    env_key = f"FEATURE_{flag.upper()}"
+    value = os.environ.get(env_key, "false")
+    return value.lower() in ("true", "1", "yes")
 
 
-# Module-level singleton used across the application.
-feature_flag_client = FeatureFlagClient()
+def get_all_flags() -> dict[str, bool]:
+    """Get all feature flags from environment."""
+    flags = {}
+    prefix = "FEATURE_"
+    for key, value in os.environ.items():
+        if key.startswith(prefix):
+            flag_name = key[len(prefix):].lower()
+            flags[flag_name] = value.lower() in ("true", "1", "yes")
+    return flags

@@ -162,7 +162,7 @@ const styles = {
 // ---------------------------------------------------------------------------
 
 export function CookieConsent() {
-  const { grantConsent, revokeConsent, getConsentState } = useAnalytics();
+  const { grantConsent, revokeConsent, hasConsent } = useAnalytics();
   const [visible, setVisible] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [analyticsChecked, setAnalyticsChecked] = useState(false);
@@ -170,10 +170,10 @@ export function CookieConsent() {
 
   // Show the banner only if no consent decision has been recorded yet.
   useEffect(() => {
-    const state = getConsentState();
+    const consentValue = localStorage.getItem("toolbox_consent");
     const details = readDetails();
 
-    if (details === null && state === null) {
+    if (details === null && consentValue === null) {
       setVisible(true);
     }
 
@@ -182,7 +182,7 @@ export function CookieConsent() {
       setAnalyticsChecked(details.analytics);
       setErrorsChecked(details.errors);
     }
-  }, [getConsentState]);
+  }, []);
 
   // -------------------------------------------------------------------
   // Handlers
@@ -296,7 +296,7 @@ export function CookieConsent() {
                   <strong>Analytics</strong>
                   <small style={styles.toggleSmall}>
                     Helps us understand how visitors interact with the site
-                    (PostHog).
+                    (Umami).
                   </small>
                 </span>
               </label>
@@ -315,7 +315,7 @@ export function CookieConsent() {
                   <strong>Error Tracking</strong>
                   <small style={styles.toggleSmall}>
                     Sends detailed error reports to help us fix bugs faster
-                    (Sentry).
+                    (GlitchTip).
                   </small>
                 </span>
               </label>

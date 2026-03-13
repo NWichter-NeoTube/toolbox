@@ -16,9 +16,9 @@ import BaseLayout from "../layouts/BaseLayout.astro";
       <h2>Stack</h2>
       <ul class="features__list">
         <li><strong>Astro</strong> &mdash; static site generation</li>
-        <li><strong>PostHog</strong> &mdash; privacy-aware analytics (self-hosted)</li>
-        <li><strong>Sentry</strong> &mdash; error tracking (self-hosted)</li>
-        <li><strong>Unleash</strong> &mdash; feature flags (self-hosted)</li>
+        <li><strong>Umami</strong> &mdash; privacy-friendly analytics (self-hosted)</li>
+        <li><strong>GlitchTip</strong> &mdash; error tracking (self-hosted, Sentry-compatible)</li>
+        <li><strong>ENV-based feature flags</strong> &mdash; simple, no external service</li>
       </ul>
     </section>
 
@@ -26,25 +26,24 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     <section class="ff-demo" id="ff-demo">
       <h2>Feature Flag Demo</h2>
       <p id="ff-status" class="ff-demo__status">
-        Checking feature flag <code>example-feature</code>&hellip;
+        Checking feature flag <code>dark_mode</code>&hellip;
       </p>
     </section>
   </main>
 </BaseLayout>
 
 <script>
-  import { initFeatureFlags, isEnabled } from "../lib/feature-flags";
+  import { isFeatureEnabled } from "../lib/feature-flags";
 
-  async function renderFlagDemo() {
+  function renderFlagDemo() {
     const el = document.getElementById("ff-status");
     if (!el) return;
 
-    await initFeatureFlags();
-    const enabled = isEnabled("example-feature");
+    const enabled = isFeatureEnabled("dark_mode");
 
     el.textContent = enabled
-      ? "The \"example-feature\" flag is ENABLED."
-      : "The \"example-feature\" flag is disabled (or Unleash is not configured).";
+      ? "The \"dark_mode\" feature flag is ENABLED."
+      : "The \"dark_mode\" feature flag is disabled.";
   }
 
   renderFlagDemo();

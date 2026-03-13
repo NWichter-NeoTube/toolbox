@@ -1,6 +1,6 @@
 # Boilerplates
 
-Production-ready starter templates for every platform, pre-wired with the self-hosted toolbox stack (PostHog, Sentry, Unleash). All boilerplates implement the same **DSGVO/GDPR-compliant consent flow**.
+Production-ready starter templates for every platform, pre-wired with the self-hosted toolbox stack (Umami, GlitchTip, ENV-based feature flags). All boilerplates implement the same **DSGVO/GDPR-compliant consent flow**.
 
 ## Available Boilerplates
 
@@ -21,7 +21,7 @@ Production-ready starter templates for every platform, pre-wired with the self-h
 | **Lighthouse CI** | Performance, accessibility, SEO audits | `bun run lighthouse` |
 | **Playwright** | E2E browser testing | `bun run test` |
 | **Astro Check** | TypeScript + Astro diagnostics | `bun run lint` |
-| **Web Vitals** | Core Web Vitals tracking via PostHog | Automatic |
+| **Web Vitals** | Core Web Vitals tracking via Umami | Automatic |
 | **Sitemap** | Auto-generated sitemap.xml | Build output |
 
 ### Webapp (Next.js)
@@ -33,7 +33,7 @@ Production-ready starter templates for every platform, pre-wired with the self-h
 | **Jest + RTL** | Unit + component testing | `npm run test` |
 | **ESLint** | Code quality + Next.js rules | `npm run lint` |
 | **Security Headers** | CSP, HSTS, X-Frame-Options | Auto (next.config) |
-| **Sentry Source Maps** | Production error mapping | Auto (build) |
+| **GlitchTip Source Maps** | Production error mapping | Auto (build) |
 
 ### Webapp (FastAPI)
 
@@ -72,34 +72,33 @@ All boilerplates follow the same patterns:
 ### Consent Flow (DSGVO/GDPR)
 
 ```
-┌─────────────────────┐
-│   App Starts         │
-│   PostHog: memory    │ ← No cookies, no storage
-│   Sentry: no PII     │ ← Errors captured, user data stripped
-│   Unleash: active     │ ← Feature flags always work
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  Consent Prompt      │
-│  ┌───────────────┐  │
-│  │ Accept All     │──┼──→ grantConsent()
-│  │ Only Essential │──┼──→ stayAnonymous()
-│  │ Customize      │──┼──→ granularSettings()
-│  └───────────────┘  │
-└──────────┬──────────┘
-           │
-     ┌─────┴─────┐
-     ▼           ▼
-┌─────────┐ ┌─────────┐
-│ Granted  │ │ Denied   │
-│ ──────── │ │ ──────── │
-│ PostHog: │ │ PostHog: │
-│  cookies │ │  memory  │
-│  autocap │ │  anon    │
-│ Sentry:  │ │ Sentry:  │
-│  full PII│ │  no PII  │
-└─────────┘ └─────────┘
++---------------------+
+|   App Starts         |
+|   Umami: no cookies  | <- Privacy-friendly by default
+|   GlitchTip: no PII  | <- Errors captured, user data stripped
+|   Flags: ENV-based    | <- Always available, no external service
++----------+----------+
+           |
+           v
++---------------------+
+|  Consent Prompt      |
+|  +---------------+  |
+|  | Accept All     |--+--> grantConsent()
+|  | Only Essential |--+--> stayAnonymous()
+|  | Customize      |--+--> granularSettings()
+|  +---------------+  |
++----------+----------+
+           |
+     +-----+-----+
+     v           v
++---------+ +---------+
+| Granted  | | Denied   |
+| -------- | | -------- |
+| Umami:   | | Umami:   |
+|  track   | |  silent  |
+| GlitchTip| | GlitchTip|
+|  full PII| |  no PII  |
++---------+ +---------+
 ```
 
 ### Storage Keys (consistent across all platforms)
@@ -116,11 +115,10 @@ Every boilerplate uses the same logical variables, adapted for the platform:
 
 | Variable | Web (public) | Server | Mobile |
 |---|---|---|---|
-| PostHog Key | `PUBLIC_POSTHOG_KEY` | `POSTHOG_API_KEY` | `POSTHOG_API_KEY` |
-| PostHog Host | `PUBLIC_POSTHOG_HOST` | `POSTHOG_HOST` | `POSTHOG_HOST` |
-| Sentry DSN | `PUBLIC_SENTRY_DSN` | `SENTRY_DSN` | `SENTRY_DSN` |
-| Unleash URL | `PUBLIC_UNLEASH_URL` | `UNLEASH_URL` | `UNLEASH_URL` |
-| Unleash Key | `PUBLIC_UNLEASH_CLIENT_KEY` | `UNLEASH_API_TOKEN` | `UNLEASH_CLIENT_KEY` |
+| Umami Host | `PUBLIC_UMAMI_HOST` | `UMAMI_HOST` | `UMAMI_HOST` |
+| Umami Website ID | `PUBLIC_UMAMI_WEBSITE_ID` | `UMAMI_WEBSITE_ID` | `UMAMI_WEBSITE_ID` |
+| GlitchTip DSN | `PUBLIC_GLITCHTIP_DSN` | `GLITCHTIP_DSN` | `GLITCHTIP_DSN` |
+| Feature Flags | `PUBLIC_FEATURE_*` | `FEATURE_*` | `--dart-define=FEATURE_*` |
 
 ## Quick Start (any boilerplate)
 
@@ -143,16 +141,16 @@ bun run dev    # or npm run dev / uvicorn / flutter run / xcode
 Each boilerplate connects to these self-hosted services:
 
 ```
-Your App  ──→  PostHog   (posthog.example.com)   Analytics
-          ──→  Sentry    (sentry.example.com)     Error tracking
-          ──→  Unleash   (unleash.example.com)    Feature flags
-          ──→  Your API  (api.example.com)        Backend
-                 │
-                 ├──→  PostgreSQL    (internal)
-                 ├──→  Redis         (internal)
-                 ├──→  Meilisearch   (internal)
-                 ├──→  Qdrant        (internal)
-                 └──→  MinIO         (internal)
+Your App  -->  Umami      (track.sorevo.de)       Analytics
+          -->  GlitchTip  (logs.sorevo.de)      Error tracking
+          -->  ENV Flags   (build-time)            Feature flags
+          -->  Your API   (api-{name}.sorevo.de)   Backend
+                 |
+                 +-->  PostgreSQL    (internal)
+                 +-->  Redis         (internal)
+                 +-->  Typesense     (internal)
+                 +-->  MinIO         (internal)
+                 +-->  Imgproxy      (internal)
 ```
 
 See [docs/05-verification.md](../docs/05-verification.md) for end-to-end testing instructions.

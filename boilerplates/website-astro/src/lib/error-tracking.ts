@@ -1,22 +1,25 @@
 /**
- * Sentry browser SDK initialisation — consent-aware.
+ * GlitchTip (Sentry-compatible) browser SDK initialisation -- consent-aware.
  *
  * This file is referenced by `@sentry/astro` via `clientInitPath` in
  * astro.config.mjs. It runs once on every page load.
  *
+ * GlitchTip is a self-hosted, Sentry-compatible error tracking service.
+ * It uses the standard Sentry SDK with a DSN pointing to the GlitchTip instance.
+ *
  * DSGVO/GDPR considerations:
- *  - Sentry always captures errors (this is a *legitimate interest* use-case
- *    recognised by GDPR Art. 6(1)(f)) but we strip PII unless the user has
- *    granted consent.
+ *  - Error tracking always captures errors (this is a *legitimate interest*
+ *    use-case recognised by GDPR Art. 6(1)(f)) but we strip PII unless the
+ *    user has granted consent.
  *  - When consent is granted we attach the user's distinct ID and allow
- *    session replay / breadcrumbs that may contain PII.
+ *    breadcrumbs that may contain PII.
  *  - When consent is revoked we clear the user scope and disable PII
  *    collection.
  */
 
 import * as Sentry from "@sentry/astro";
 
-const SENTRY_DSN = import.meta.env.PUBLIC_SENTRY_DSN as string;
+const GLITCHTIP_DSN = import.meta.env.PUBLIC_GLITCHTIP_DSN as string;
 
 // ---------------------------------------------------------------------------
 // Check consent state (mirrors the key used in analytics.ts)
@@ -31,23 +34,19 @@ function hasAnalyticsConsent(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Initialise Sentry
+// Initialise GlitchTip (Sentry-compatible)
 // ---------------------------------------------------------------------------
 
-if (SENTRY_DSN) {
+if (GLITCHTIP_DSN) {
   const consentGranted = hasAnalyticsConsent();
 
   Sentry.init({
-    dsn: SENTRY_DSN,
+    dsn: GLITCHTIP_DSN,
     environment: import.meta.env.MODE,
 
     // Send errors regardless of consent (legitimate interest), but strip PII
     // when consent is not granted.
     sendDefaultPii: consentGranted,
-
-    // Session replay — only when consent is granted.
-    replaysSessionSampleRate: consentGranted ? 0.1 : 0,
-    replaysOnErrorSampleRate: consentGranted ? 1.0 : 0,
 
     // Performance monitoring
     tracesSampleRate: 0.2,
@@ -80,9 +79,7 @@ if (SENTRY_DSN) {
 
   window.addEventListener("toolbox:consent", ((event: CustomEvent<string>) => {
     if (event.detail === "granted") {
-      Sentry.setUser({ id: "anonymous" }); // Will be enriched once PostHog identifies the user.
-      // Dynamically enable replay if integration is present.
-      Sentry.getClient()?.getOptions().replaysSessionSampleRate;
+      Sentry.setUser({ id: "anonymous" });
     } else {
       Sentry.setUser(null);
     }

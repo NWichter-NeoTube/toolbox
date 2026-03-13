@@ -1,14 +1,14 @@
 import Foundation
-import Combine
-import PostHog
 
 // MARK: - Analytics Manager
 
-/// Consent-aware PostHog wrapper.
+/// Consent-aware Umami analytics wrapper.
 ///
-/// Operates in cookieless / no-persistence mode until the user explicitly
-/// grants consent via the DSGVO/GDPR consent banner.  When consent is
-/// revoked every local identifier is wiped and tracking stops immediately.
+/// Sends events via URLSession HTTP calls to the self-hosted Umami instance.
+/// No tracking occurs until the user explicitly grants consent via the
+/// DSGVO/GDPR consent banner. When consent is revoked, tracking stops
+/// immediately.
+@MainActor
 final class AnalyticsManager: ObservableObject {
 
     // MARK: - Published State
@@ -25,25 +25,6 @@ final class AnalyticsManager: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.consentGranted = defaults.bool(forKey: Config.Defaults.analyticsConsent)
-
-        configurePostHog()
-    }
-
-    // MARK: - PostHog Setup
-
-    private func configurePostHog() {
-        let config = PostHogConfig(apiKey: Config.postHogAPIKey, host: Config.postHogHost)
-
-        // DSGVO/GDPR: start opted-out; only opt-in after explicit consent.
-        config.optOut = !consentGranted
-
-        // Cookieless / minimal-persistence mode:
-        config.captureApplicationLifecycleEvents = consentGranted
-        config.captureScreenViews = false  // we track manually for control
-        config.flushAt = 10
-        config.flushIntervalSeconds = 30
-
-        PostHogSDK.shared.setup(config)
     }
 
     // MARK: - Consent
@@ -52,40 +33,46 @@ final class AnalyticsManager: ObservableObject {
     func grantConsent() {
         consentGranted = true
         defaults.set(true, forKey: Config.Defaults.analyticsConsent)
-
-        PostHogSDK.shared.optIn()
     }
 
-    /// Revoke analytics consent. Disables tracking and clears all local data.
+    /// Revoke analytics consent. Disables tracking immediately.
     func revokeConsent() {
         consentGranted = false
         defaults.set(false, forKey: Config.Defaults.analyticsConsent)
-
-        PostHogSDK.shared.optOut()
-        PostHogSDK.shared.reset()
     }
 
     // MARK: - Tracking
 
     /// Track a named event with optional properties.
-    func trackEvent(name: String, properties: [String: Any]? = nil) {
-        guard consentGranted else { return }
-        PostHogSDK.shared.capture(name, properties: properties)
-    }
-
-    /// Identify the current user (e.g. after login).
-    func identifyUser(id: String, properties: [String: Any]? = nil) {
+    func trackEvent(_ name: String, data: [String: Any]? = nil) {
         guard consentGranted else { return }
 
-        var userProperties = properties ?? [:]
-        userProperties["app_version"] = Config.appVersion
+        let host = Config.umamiHost
+        let websiteId = Config.umamiWebsiteId
+        guard !host.isEmpty, !websiteId.isEmpty else { return }
+        guard let url = URL(string: "\(host)/api/send") else { return }
 
-        PostHogSDK.shared.identify(id, userProperties: userProperties)
+        var payload: [String: Any] = [
+            "website": websiteId,
+            "name": name,
+            "url": "/",
+        ]
+        if let data = data {
+            payload["data"] = data
+        }
+
+        let body: [String: Any] = ["payload": payload, "type": "event"]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
     }
 
     /// Track a screen view.
-    func trackScreen(name: String) {
-        guard consentGranted else { return }
-        PostHogSDK.shared.screen(name)
+    func trackScreen(_ name: String) {
+        trackEvent("screen_view", data: ["screen": name])
     }
 }

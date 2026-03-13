@@ -7,6 +7,7 @@ See .env.example for the full list of supported variables.
 from __future__ import annotations
 
 import json
+import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,17 +25,15 @@ class Settings(BaseSettings):
         case_sensitive=True,
     )
 
-    # --- PostHog (self-hosted analytics) ---
-    POSTHOG_API_KEY: str = ""
-    POSTHOG_HOST: str = "https://posthog.example.com"
+    # --- Analytics (Umami) ---
+    UMAMI_HOST: str = "https://track.sorevo.de"
+    UMAMI_WEBSITE_ID: str = ""
 
-    # --- Sentry (self-hosted error tracking) ---
-    SENTRY_DSN: str = ""
+    # --- Error Tracking (GlitchTip - Sentry-compatible) ---
+    GLITCHTIP_DSN: str = ""
 
-    # --- Unleash (self-hosted feature flags) ---
-    UNLEASH_URL: str = "https://unleash.example.com/api"
-    UNLEASH_API_TOKEN: str = ""
-    UNLEASH_APP_NAME: str = "webapp-fastapi"
+    # --- Feature Flags (ENV-based) ---
+    # Access via settings.get_feature_flag("flag_name")
 
     # --- Database ---
     DATABASE_URL: str = "postgresql://toolbox:password@postgres:5432/toolbox"
@@ -58,6 +57,11 @@ class Settings(BaseSettings):
         if isinstance(origins, list):
             return [str(o) for o in origins]
         return [str(origins)]
+
+    def get_feature_flag(self, name: str) -> bool:
+        """Read feature flag from environment. Env var: FEATURE_{NAME}=true/false"""
+        value = os.environ.get(f"FEATURE_{name.upper()}", "false")
+        return value.lower() in ("true", "1", "yes")
 
 
 settings = Settings()

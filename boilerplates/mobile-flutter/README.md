@@ -6,9 +6,9 @@ Self-hosted SaaS toolbox mobile app boilerplate with DSGVO/GDPR-compliant consen
 
 | Service         | Purpose          | Self-hosted |
 |-----------------|------------------|-------------|
-| PostHog         | Analytics        | Yes         |
-| Sentry          | Error tracking   | Yes         |
-| Unleash         | Feature flags    | Yes         |
+| Umami           | Analytics        | Yes         |
+| GlitchTip       | Error tracking   | Yes         |
+| ENV flags       | Feature flags    | N/A         |
 
 All telemetry data stays on your infrastructure. No third-party SaaS receives user data.
 
@@ -20,11 +20,11 @@ Copy `.env.example` and fill in your values. Variables are passed at build time 
 
 ```bash
 flutter run \
-  --dart-define=POSTHOG_API_KEY=phc_xxx \
-  --dart-define=POSTHOG_HOST=https://posthog.example.com \
-  --dart-define=SENTRY_DSN=https://key@sentry.example.com/4 \
-  --dart-define=UNLEASH_URL=https://unleash.example.com/api/frontend \
-  --dart-define=UNLEASH_CLIENT_KEY=your-frontend-token
+  --dart-define=UMAMI_HOST=https://track.sorevo.de \
+  --dart-define=UMAMI_WEBSITE_ID=your-website-id \
+  --dart-define=GLITCHTIP_DSN=https://key@logs.example.com/1 \
+  --dart-define=FEATURE_DARK_MODE=false \
+  --dart-define=FEATURE_ONBOARDING_V2=true
 ```
 
 ### 2. Install dependencies
@@ -51,21 +51,21 @@ Consent state is persisted in `SharedPreferences` and can be changed at any time
 
 ### How it works
 
-1. PostHog starts in opt-out (cookieless) mode -- no events are sent.
-2. Sentry initializes with `sendDefaultPii: false` -- no user context is attached.
-3. When the user grants consent, PostHog is enabled and Sentry receives user scope.
-4. Revoking consent disables PostHog, resets the anonymous ID, and clears Sentry user scope.
+1. Umami analytics are disabled until consent is granted -- no events are sent.
+2. GlitchTip (Sentry-compatible) initializes with `sendDefaultPii: false` -- no user context is attached.
+3. When the user grants consent, Umami events are enabled and GlitchTip receives user scope.
+4. Revoking consent stops Umami events and clears GlitchTip user scope.
 
 ## Architecture
 
 ```
 lib/
-  main.dart                    -- App entry point, Sentry wrapper, provider setup
+  main.dart                    -- App entry point, GlitchTip wrapper, provider setup
   core/
     config.dart                -- Build-time configuration via --dart-define
-    analytics.dart             -- Consent-aware PostHog wrapper
-    feature_flags.dart         -- Unleash client wrapper with graceful fallback
-    error_tracking.dart        -- Consent-aware Sentry wrapper
+    analytics.dart             -- Consent-aware Umami HTTP API wrapper
+    feature_flags.dart         -- ENV-based feature flags (compile-time)
+    error_tracking.dart        -- Consent-aware GlitchTip (Sentry-compatible) wrapper
   providers/
     analytics_provider.dart    -- ChangeNotifier for consent state
     feature_flag_provider.dart -- ChangeNotifier for feature flags
@@ -94,8 +94,8 @@ flutter test integration_test/
 
 This mobile app connects to the same self-hosted infrastructure as the rest of the toolbox:
 
-- **PostHog** instance shared with web apps for unified analytics.
-- **Sentry** instance shared for cross-platform error tracking.
-- **Unleash** instance shared for consistent feature flag rollouts across platforms.
+- **Umami** instance shared with web apps for unified analytics.
+- **GlitchTip** instance shared for cross-platform error tracking (Sentry-compatible SDK).
+- **Feature flags** are ENV-based (`--dart-define`) -- no remote server needed.
 
 Configure each service URL to point to your toolbox deployment.

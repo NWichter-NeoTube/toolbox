@@ -17,10 +17,6 @@ void main() {
       expect(service.consentGranted, isFalse);
     });
 
-    test('starts not initialized', () {
-      expect(service.isInitialized, isFalse);
-    });
-
     test('hasConsent returns false when no preference stored', () async {
       final result = await service.hasConsent();
       expect(result, isFalse);
@@ -56,22 +52,18 @@ void main() {
       expect(result, isTrue);
     });
 
-    test('trackEvent does nothing when not initialized', () async {
-      // Should complete without error even though PostHog is not running.
+    test('trackEvent does nothing when consent not granted', () async {
+      // Should complete without error even though Umami is not configured.
       await service.trackEvent('test_event');
     });
 
-    test('trackEvent does nothing when consent not granted', () async {
-      // Simulate partial init without PostHog backend.
+    test('trackEvent does nothing when consent not granted with properties',
+        () async {
       await service.trackEvent('test_event', properties: {'key': 'value'});
       // No exception means pass.
     });
 
-    test('identifyUser does nothing when not initialized', () async {
-      await service.identifyUser('user-123');
-    });
-
-    test('trackScreen does nothing when not initialized', () async {
+    test('trackScreen does nothing when consent not granted', () async {
       await service.trackScreen('test_screen');
     });
 

@@ -19,12 +19,12 @@ struct HomeView: View {
             }
             .navigationTitle("Toolbox")
             .onAppear {
-                analytics.trackScreen(name: "Home")
+                analytics.trackScreen("Home")
             }
             .alert("Test Error Sent", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("A test error has been sent to Sentry.")
+                Text("A test error has been sent to GlitchTip.")
             }
         }
     }
@@ -35,13 +35,12 @@ struct HomeView: View {
         Section {
             featureFlagStatusRow
 
-            featureFlagRow("new_onboarding", label: "New Onboarding Flow")
-            featureFlagRow("premium_features", label: "Premium Features")
-            featureFlagRow("dark_mode_v2", label: "Dark Mode v2")
+            featureFlagRow("ONBOARDING_V2", label: "Onboarding V2")
+            featureFlagRow("DARK_MODE", label: "Dark Mode")
         } header: {
             Text("Feature Flags")
         } footer: {
-            Text("Flags are fetched from your self-hosted Unleash instance.")
+            Text("Flags are read from build configuration (Info.plist / environment).")
         }
     }
 
@@ -49,8 +48,8 @@ struct HomeView: View {
         Section("Diagnostics") {
             Button {
                 analytics.trackEvent(
-                    name: "test_event",
-                    properties: ["source": "home_screen", "timestamp": ISO8601DateFormatter().string(from: .now)]
+                    "test_event",
+                    data: ["source": "home_screen", "timestamp": ISO8601DateFormatter().string(from: .now)]
                 )
             } label: {
                 Label("Send Test Event", systemImage: "paperplane")
@@ -80,15 +79,15 @@ struct HomeView: View {
 
     private var featureFlagStatusRow: some View {
         HStack {
-            Text("Unleash Status")
+            Text("Feature Flags")
                 .font(.subheadline)
             Spacer()
             if featureFlags.isReady {
-                Label("Connected", systemImage: "checkmark.circle.fill")
+                Label("Active", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                     .font(.caption)
             } else {
-                Label("Connecting...", systemImage: "arrow.triangle.2.circlepath")
+                Label("Unavailable", systemImage: "xmark.circle")
                     .foregroundStyle(.orange)
                     .font(.caption)
             }

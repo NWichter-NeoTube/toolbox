@@ -1,22 +1,30 @@
 ---
 /**
- * Drop-in component that initialises the analytics and feature-flag clients
+ * Drop-in component that initialises analytics and feature flags
  * on every page. Include this in your base layout.
  *
- * The actual tracking mode (cookieless vs. full) is determined by the user's
- * consent state — see src/lib/analytics.ts for details.
+ * Umami is loaded via a script tag (see below). Feature flags are
+ * resolved at build time from environment variables.
  */
+import { getUmamiScriptUrl, getUmamiWebsiteId } from "../lib/analytics";
+import { resolveFlags } from "../lib/feature-flags";
+
+const umamiScriptUrl = getUmamiScriptUrl();
+const umamiWebsiteId = getUmamiWebsiteId();
+const featureFlags = resolveFlags(import.meta.env as unknown as Record<string, string>);
 ---
 
-<script>
-  import { initAnalytics } from "../lib/analytics";
-  import { initFeatureFlags } from "../lib/feature-flags";
+{/* Umami analytics script — privacy-friendly, no cookies */}
+{umamiScriptUrl && (
+  <script
+    defer
+    src={umamiScriptUrl}
+    data-website-id={umamiWebsiteId}
+    data-do-not-track="true"
+  />
+)}
 
-  // Initialise analytics (PostHog) in privacy-safe mode.
-  initAnalytics();
-
-  // Initialise feature flags (Unleash) — non-blocking.
-  initFeatureFlags().catch((err) =>
-    console.error("[analytics] Failed to initialise feature flags:", err),
-  );
+{/* Inject feature flags for client-side access */}
+<script define:vars={{ featureFlags }}>
+  window.__FEATURE_FLAGS__ = featureFlags;
 </script>

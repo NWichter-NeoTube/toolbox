@@ -4,8 +4,8 @@ import SwiftUI
 
 /// SwiftUI application entry point.
 ///
-/// Initialises Sentry for error tracking, configures PostHog in
-/// cookieless / opted-out mode, and shows the DSGVO/GDPR consent
+/// Initialises GlitchTip (Sentry-compatible) for error tracking, configures
+/// Umami analytics in opted-out mode, and shows the DSGVO/GDPR consent
 /// banner on first launch before any tracking occurs.
 @main
 struct ToolboxApp: App {
@@ -21,9 +21,9 @@ struct ToolboxApp: App {
     // MARK: - Init
 
     init() {
-        // Sentry is initialised early so crashes during startup are captured.
+        // GlitchTip is initialised early so crashes during startup are captured.
         // No PII is sent until the user grants error-tracking consent.
-        ErrorTracker.initialize(dsn: Config.sentryDSN)
+        ErrorTracker.initialize(dsn: Config.glitchtipDSN)
     }
 
     // MARK: - Body

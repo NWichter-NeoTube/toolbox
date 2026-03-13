@@ -11,14 +11,11 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Analytics — self-hosted PostHog
-  posthog_flutter: ^4.0.0
+  # Analytics — self-hosted Umami (HTTP API)
+  http: ^1.1.0
 
-  # Error tracking — self-hosted Sentry
+  # Error tracking — self-hosted GlitchTip (Sentry-compatible)
   sentry_flutter: ^7.0.0
-
-  # Feature flags — self-hosted Unleash
-  unleash_proxy_client_flutter: ^1.0.0
 
   # Local storage for consent preferences
   shared_preferences: ^2.2.0

@@ -72,36 +72,26 @@ final class AnalyticsManagerTests: XCTestCase {
     // MARK: - Event Tracking Guards
 
     /// Verifies that `trackEvent` silently no-ops when consent is not granted.
-    /// (We cannot easily assert PostHog internals, but we can ensure no crash.)
+    /// (We cannot easily assert Umami HTTP internals, but we can ensure no crash.)
     func testTrackEventWithoutConsentDoesNotCrash() {
         XCTAssertFalse(sut.consentGranted)
-        sut.trackEvent(name: "test_event", properties: ["key": "value"])
+        sut.trackEvent("test_event", data: ["key": "value"])
         // No assertion needed -- reaching this line means no crash.
     }
 
     func testTrackEventWithConsentDoesNotCrash() {
         sut.grantConsent()
-        sut.trackEvent(name: "test_event", properties: ["key": "value"])
-    }
-
-    func testIdentifyUserWithoutConsentDoesNotCrash() {
-        XCTAssertFalse(sut.consentGranted)
-        sut.identifyUser(id: "user-123", properties: ["plan": "pro"])
-    }
-
-    func testIdentifyUserWithConsentDoesNotCrash() {
-        sut.grantConsent()
-        sut.identifyUser(id: "user-123", properties: ["plan": "pro"])
+        sut.trackEvent("test_event", data: ["key": "value"])
     }
 
     func testTrackScreenWithoutConsentDoesNotCrash() {
         XCTAssertFalse(sut.consentGranted)
-        sut.trackScreen(name: "Home")
+        sut.trackScreen("Home")
     }
 
     func testTrackScreenWithConsentDoesNotCrash() {
         sut.grantConsent()
-        sut.trackScreen(name: "Home")
+        sut.trackScreen("Home")
     }
 
     // MARK: - Multiple Grant / Revoke Cycles
