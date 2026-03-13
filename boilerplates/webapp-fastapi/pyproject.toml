@@ -20,6 +20,8 @@ dev = [
     "httpx>=0.27.0",
     "ruff>=0.8.0",
     "locust>=2.32.0",
+    "pip-audit>=2.7",
+    "bandit>=1.7",
 ]
 
 [build-system]
@@ -58,6 +60,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]  # Allow assert in tests
+
+[tool.bandit]
+exclude_dirs = ["tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
