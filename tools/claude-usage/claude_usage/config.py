@@ -22,7 +22,10 @@ class Settings(BaseSettings):
 
     # Output
     log_dir: Path = Path("./logs")
-    log_format: str = "jsonl"
+
+    @property
+    def db_path(self) -> Path:
+        return self.log_dir / "usage.db"
 
     # Display
     quiet: bool = False

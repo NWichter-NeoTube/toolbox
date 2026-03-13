@@ -52,7 +52,7 @@ def run_monitor(interval: int, quiet: bool) -> None:
 
     # Run immediately on start
     console.print(f"[bold]Claude Usage Monitor[/bold] — polling every {interval}s")
-    console.print(f"[dim]Logs: {settings.log_dir.resolve()}[/dim]")
+    console.print(f"[dim]Database: {settings.db_path.resolve()}[/dim]")
     console.print()
     poll()
 

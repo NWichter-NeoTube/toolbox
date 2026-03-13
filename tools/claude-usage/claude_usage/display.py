@@ -112,3 +112,24 @@ def display_history(entries: list[LogEntry]) -> None:
         )
 
     console.print(table)
+
+
+def display_stats(stats: dict, date: str | None = None) -> None:
+    """Print aggregate usage statistics."""
+    if stats["count"] == 0:
+        console.print("[dim]No data available.[/dim]")
+        return
+
+    title = f"Usage Stats  {date}" if date else "Usage Stats  (all time)"
+
+    lines = [
+        f"  {'':16s} {'Avg':>8s}  {'Peak':>8s}",
+        f"  {'5h Session':16s} {stats['avg_5h']:7.1f}%  {stats['max_5h']:7.1f}%",
+        f"  {'Weekly':16s} {stats['avg_7d']:7.1f}%  {stats['max_7d']:7.1f}%",
+        f"  {'Weekly (Opus)':16s} {stats['avg_opus']:7.1f}%  {stats['max_opus']:7.1f}%",
+        f"",
+        f"  Data points: {stats['count']}",
+    ]
+
+    body = "\n".join(lines)
+    console.print(Panel(body, title=title, border_style="blue"))

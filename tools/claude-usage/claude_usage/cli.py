@@ -55,12 +55,36 @@ def watch(interval: int | None, quiet: bool):
 @click.option("--date", "-d", default=None, help="Show logs for specific date (YYYY-MM-DD).")
 @click.option("--last", "-n", default=20, type=int, help="Number of entries to show.")
 def history(date: str | None, last: int):
-    """View historical usage data from log files."""
+    """View historical usage data."""
     from claude_usage.display import display_history
     from claude_usage.log_writer import read_logs
 
     entries = read_logs(date=date, last=last)
     display_history(entries)
+
+
+@cli.command()
+@click.option("--date", "-d", default=None, help="Stats for specific date (YYYY-MM-DD).")
+def stats(date: str | None):
+    """Show usage statistics (averages, peaks)."""
+    from claude_usage.db import query_stats
+    from claude_usage.display import display_stats
+
+    result = query_stats(date=date)
+    display_stats(result, date=date)
+
+
+@cli.command()
+def migrate():
+    """Migrate existing JSONL logs to SQLite database."""
+    from claude_usage.db import migrate_jsonl
+
+    settings.ensure_dirs()
+    count = migrate_jsonl(settings.log_dir)
+    if count:
+        console.print(f"[green]Migrated {count} entries to {settings.db_path}[/green]")
+    else:
+        console.print("[dim]No JSONL files found to migrate.[/dim]")
 
 
 if __name__ == "__main__":
