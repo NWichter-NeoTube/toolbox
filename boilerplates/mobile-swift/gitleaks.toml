@@ -1,0 +1,3 @@
+[allowlist]
+description = "Global allowlist"
+paths = ["Pods", "build", ".env.example"]

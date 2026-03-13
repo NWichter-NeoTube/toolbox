@@ -1,0 +1,19 @@
+disabled_rules:
+  - trailing_whitespace
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - overridden_super_call
+  - private_outlet
+  - private_action
+included:
+  - Sources
+excluded:
+  - Pods
+  - build
+  - .build
+line_length:
+  warning: 120
+  error: 200
