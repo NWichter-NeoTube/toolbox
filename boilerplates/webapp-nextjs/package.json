@@ -10,7 +10,11 @@
     "test": "jest",
     "test:e2e": "playwright test",
     "analyze": "ANALYZE=true next build",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
   },
   "dependencies": {
     "next": "^14.2.0",
@@ -34,7 +38,10 @@
     "@types/react-dom": "^18.3.0",
     "typescript": "^5.7.0",
     "eslint": "^9.16.0",
-    "eslint-config-next": "^14.2.0"
+    "eslint-config-next": "^14.2.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.4.0",
+    "prettier": "^3.4.0"
   },
   "packageManager": "bun@1.2.0"
 }
