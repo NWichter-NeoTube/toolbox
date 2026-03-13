@@ -16,6 +16,15 @@ Thumbs.db
 # Docker volumes (if accidentally created locally)
 data/
 
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+*.db
+
+# Tool output
+pr-comments/
+
 # Temp files
 *.tmp
 *.bak
