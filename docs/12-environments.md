@@ -2,7 +2,7 @@
 
 How to set up and manage dev, staging, and production environments. Every project uses three environments to ensure code is tested before it reaches users.
 
-> **Prerequisites:** Your toolbox stack must be running (see [04-deploy-stack.md](04-deploy-stack.md)) and you should have a project set up (see [10-project-workflow.md](10-project-workflow.md)).
+> **Prerequisites:** Familiarity with the toolbox repo structure (see [00-overview.md](00-overview.md)) and project setup (see [10-project-workflow.md](10-project-workflow.md)).
 
 ---
 
@@ -543,7 +543,7 @@ rm /tmp/prod_dump.sql /tmp/anon_dump.sql
 
 The production database is created during the initial project setup. Keep it safe:
 
-- **Backups:** Daily automated backups (see [06-operations.md](06-operations.md)).
+- **Backups:** Daily automated backups.
 - **Access:** Only the production application connects. No human access unless debugging.
 - **Migrations:** Always tested on staging first. Run via CI/CD pipeline, never manually.
 

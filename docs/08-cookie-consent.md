@@ -8,7 +8,7 @@ Under DSGVO (GDPR), you **must not** set non-essential cookies or collect PII be
 
 | Requirement | How We Comply |
 |---|---|
-| No tracking before consent | PostHog starts in memory-only mode (zero cookies) |
+| No tracking before consent | PostHog configured in memory-only mode (zero cookies) |
 | Informed consent | Clear banner explaining what data is collected |
 | Granular control | Users can accept analytics separately from error tracking |
 | Right to withdraw | `revokeConsent()` clears all tracking data instantly |

@@ -2,7 +2,7 @@
 
 How to plan, create, and ship new projects using this toolbox. Every project follows the same lifecycle: plan, set up infrastructure, develop, collect feedback, iterate.
 
-> **Prerequisites:** The toolbox stack must be fully deployed (see [04-deploy-stack.md](04-deploy-stack.md)). You need your Coolify API token, server UUID, and access to PostHog, Sentry, Unleash, and Infisical.
+> **Prerequisites:** Familiarity with the toolbox repo structure (see [00-overview.md](00-overview.md)). For deployment features, you need a Coolify instance and access to PostHog, Sentry, Unleash, and Infisical.
 
 ---
 
@@ -419,7 +419,7 @@ Collect feedback from multiple sources:
 | Bug reports          | Sentry         | Automatic error capture + user feedback widget           |
 | Usage patterns       | PostHog        | Funnels, heatmaps, session recordings (with consent)     |
 | Stakeholder feedback | GitHub Issues  | Issue templates for feature requests and bugs            |
-| Customer calls       | Transcription  | Record (with consent) and analyze (see [13-voice-interface.md](13-voice-interface.md)) |
+| Customer calls       | Transcription  | Record (with consent) and analyze with `tools/voice-feedback/` |
 
 ### 4.2 Issue-Templates
 
