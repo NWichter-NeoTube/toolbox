@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(which claude:*)",
+      "Bash(npm install:*)",
+      "Bash(cd \"C:/Users/nikla/desktop/Sonstiges/Projekte/toolbox/tools/pr-comments\" && pip install -e . 2>&1 | tail -5)",
+      "Bash(pr-comments --help 2>&1)",
+      "Bash(pr-comments fetch:*)",
+      "Bash(powershell -Command \"[Environment]::SetEnvironmentVariable\\('Path', [Environment]::GetEnvironmentVariable\\('Path', 'User'\\) + ';C:\\\\Users\\\\nikla\\\\AppData\\\\Roaming\\\\npm', 'User'\\)\")",
+      "Bash(powershell -NoProfile -Command \"[Environment]::SetEnvironmentVariable\\('Path', [Environment]::GetEnvironmentVariable\\('Path', 'User'\\) + ';C:\\\\Users\\\\nikla\\\\AppData\\\\Roaming\\\\npm', 'User'\\)\")"
+    ]
+  }
+}
