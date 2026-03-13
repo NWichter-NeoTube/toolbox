@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pr-comments"
+version = "0.1.0"
+description = "Download all GitHub PR comments into a structured JSON format for systematic processing."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Toolbox Team" }]
+dependencies = [
+    "pydantic>=2.6.0",
+    "rich>=13.7.0",
+    "click>=8.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.3.0",
+]
+
+[project.scripts]
+pr-comments = "pr_comments.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["pr_comments*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

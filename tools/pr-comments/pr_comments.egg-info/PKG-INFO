@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: pr-comments
+Version: 0.1.0
+Summary: Download all GitHub PR comments into a structured JSON format for systematic processing.
+Author: Toolbox Team
+License: MIT
+Requires-Python: >=3.11
+Requires-Dist: pydantic>=2.6.0
+Requires-Dist: rich>=13.7.0
+Requires-Dist: click>=8.1.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: ruff>=0.3.0; extra == "dev"
