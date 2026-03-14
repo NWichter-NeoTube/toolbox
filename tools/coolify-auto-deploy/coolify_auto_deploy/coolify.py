@@ -89,6 +89,8 @@ async def create_application(
     environment_name: str = "production",
 ) -> str:
     """Create a Docker-based application in Coolify and return its UUID."""
+    base_dir = f"/{build_context}" if build_context != "." else "/"
+    dockerfile_loc = f"/{build_context}/Dockerfile" if build_context != "." else "/Dockerfile"
     payload = {
         "project_uuid": project_id,
         "environment_name": environment_name,
@@ -99,7 +101,8 @@ async def create_application(
         "git_branch": branch,
         "build_pack": "dockerfile",
         "ports_exposes": str(port),
-        "base_directory": build_context if build_context != "." else "/",
+        "base_directory": base_dir,
+        "dockerfile_location": dockerfile_loc,
         "domains": f"https://{domain}",
         "instant_deploy": False,
     }
