@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     # Database (registry)
     database_url: str = "postgresql://localhost:5432/_deploy"
 
+    # Coolify server/destination (required for creating applications)
+    coolify_server_uuid: str = ""
+    coolify_destination_uuid: str = ""
+
     # Domain
     base_domain: str = "sorevo.de"
 

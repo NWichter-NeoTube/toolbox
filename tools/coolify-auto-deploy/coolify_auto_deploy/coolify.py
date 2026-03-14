@@ -65,7 +65,7 @@ async def create_project(name: str) -> str:
         resp = await client.post(
             _api("/projects"),
             headers=_headers(),
-            json={"name": name, "description": f"Auto-deployed project: {name}"},
+            json={"name": name, "description": f"Auto-deployed project - {name}"},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -86,23 +86,27 @@ async def create_application(
     port: int,
     build_context: str,
     domain: str,
+    environment_name: str = "production",
 ) -> str:
     """Create a Docker-based application in Coolify and return its UUID."""
     payload = {
         "project_uuid": project_id,
+        "environment_name": environment_name,
+        "server_uuid": settings.coolify_server_uuid,
+        "destination_uuid": settings.coolify_destination_uuid,
         "name": name,
-        "git_repository": f"https://github.com/{repo}.git",
+        "git_repository": f"https://github.com/{repo}",
         "git_branch": branch,
         "build_pack": "dockerfile",
         "ports_exposes": str(port),
         "base_directory": build_context if build_context != "." else "/",
-        "domains": [f"https://{domain}"],
+        "domains": f"https://{domain}",
         "instant_deploy": False,
     }
 
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(
-            _api("/applications"),
+            _api("/applications/public"),
             headers=_headers(),
             json=payload,
         )
@@ -152,7 +156,6 @@ async def set_env_vars(app_id: str, env_vars: dict[str, str]) -> None:
                     "key": key,
                     "value": value,
                     "is_preview": False,
-                    "is_build_time": False,
                 },
             )
             try:
@@ -170,8 +173,7 @@ async def set_env_vars(app_id: str, env_vars: dict[str, str]) -> None:
                         "key": key,
                         "value": value,
                         "is_preview": False,
-                        "is_build_time": False,
-                    },
+                        },
                 )
                 patch_resp.raise_for_status()
 

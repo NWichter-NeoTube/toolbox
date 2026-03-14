@@ -64,16 +64,29 @@ async def github_webhook(request: Request):
     project_name = repo_full_name.split("/")[-1]
     env = "production" if branch == "main" else "staging"
 
+    errors: list[str] = []
+
     # Check if project already exists in registry
     record = await database.get_project(project_name)
 
     if not record:
-        record = await provision_new_project(project_name, repo_full_name, config)
+        record, errors = await provision_new_project(
+            project_name, repo_full_name, config
+        )
 
     # Deploy the appropriate environment
-    await coolify.deploy_environment(record, env)
+    try:
+        await coolify.deploy_environment(record, env)
+    except Exception as exc:
+        errors.append(f"deploy: {exc}")
+        logger.exception("Failed to deploy %s (%s)", project_name, env)
 
-    return {"status": "deployed", "project": project_name, "environment": env}
+    return {
+        "status": "deployed" if not errors else "partial",
+        "project": project_name,
+        "environment": env,
+        "errors": errors,
+    }
 
 
 async def fetch_config(repo: str, branch: str) -> CoolifyConfig | None:
@@ -97,15 +110,26 @@ async def fetch_config(repo: str, branch: str) -> CoolifyConfig | None:
 
 async def provision_new_project(
     name: str, repo: str, config: CoolifyConfig
-) -> DeploymentRecord:
-    """Provision a complete new project with all services."""
-    logger.info("Provisioning new project: %s (%s)", name, config.type)
+) -> tuple[DeploymentRecord, list[str]]:
+    """Provision a complete new project with all services.
 
-    # 1. Create Coolify project
+    Returns (record, errors) — errors is a list of non-fatal issues that
+    occurred during provisioning. The Coolify project + applications are
+    the only hard requirements; everything else is best-effort.
+    """
+    logger.info("Provisioning new project: %s (%s)", name, config.type)
+    errors: list[str] = []
+
+    # 1. Create Coolify project (required — fail hard if this doesn't work)
     project_id = await coolify.create_project(name)
 
-    # 2. Create Infisical project (secrets management)
-    infisical_id = await infisical.create_project(name)
+    # 2. Create Infisical project (optional)
+    infisical_id = None
+    try:
+        infisical_id = await infisical.create_project(name)
+    except Exception as exc:
+        errors.append(f"infisical: {exc}")
+        logger.warning("Skipping Infisical for %s: %s", name, exc)
 
     # 3. Create apps for each service (prod + staging)
     service_ids: dict[str, str] = {}
@@ -122,24 +146,44 @@ async def provision_new_project(
             )
             service_ids[f"{svc_name}_{env}"] = app_id
 
-    # 4. Provision databases
+    # 4. Provision databases (optional — only for webapp/shop/app types)
     db_ids: dict[str, str] = {}
-    if config.databases.postgres:
-        db_ids["postgres"] = await database.create_postgres(name, project_id)
-    if config.databases.redis:
-        db_ids["redis"] = f"prefix:{name}"  # Key-prefix, not separate instance
+    if config.databases and config.databases.postgres:
+        try:
+            db_ids["postgres"] = await database.create_postgres(name, project_id)
+        except Exception as exc:
+            errors.append(f"postgres: {exc}")
+            logger.warning("Skipping PostgreSQL for %s: %s", name, exc)
+    if config.databases and config.databases.redis:
+        db_ids["redis"] = f"prefix:{name}"
 
-    # 5. Create Umami website
+    # 5. Create Umami website (optional)
     primary_domain = f"{name}.{settings.base_domain}"
-    umami_id = await umami.create_website(name, primary_domain)
+    umami_id = None
+    try:
+        umami_id = await umami.create_website(name, primary_domain)
+    except Exception as exc:
+        errors.append(f"umami: {exc}")
+        logger.warning("Skipping Umami for %s: %s", name, exc)
 
-    # 6. Create GlitchTip project
-    glitchtip_id, glitchtip_dsn = await glitchtip.create_project(name)
+    # 6. Create GlitchTip project (optional)
+    glitchtip_id = None
+    glitchtip_dsn = None
+    try:
+        glitchtip_id, glitchtip_dsn = await glitchtip.create_project(name)
+    except Exception as exc:
+        errors.append(f"glitchtip: {exc}")
+        logger.warning("Skipping GlitchTip for %s: %s", name, exc)
 
-    # 7. Create Uptime Kuma monitors
-    monitor_id = await uptime_kuma.create_monitor(
-        name, f"https://{primary_domain}"
-    )
+    # 7. Create Uptime Kuma monitors (optional)
+    monitor_id = None
+    try:
+        monitor_id = await uptime_kuma.create_monitor(
+            name, f"https://{primary_domain}"
+        )
+    except Exception as exc:
+        errors.append(f"uptime_kuma: {exc}")
+        logger.warning("Skipping Uptime Kuma for %s: %s", name, exc)
 
     # 8. Build environment variables
     env_vars: dict[str, str] = {
@@ -147,20 +191,28 @@ async def provision_new_project(
         "UMAMI_HOST": settings.umami_url,
         "GLITCHTIP_DSN": glitchtip_dsn or "",
     }
-    if config.databases.postgres:
+    if db_ids.get("postgres"):
         env_vars["DATABASE_URL"] = await database.get_connection_string(name)
-    if config.databases.redis:
+    if db_ids.get("redis"):
         env_vars["REDIS_KEY_PREFIX"] = f"{name}:"
 
-    # 9. Store secrets in Infisical (source of truth)
+    # 9. Store secrets in Infisical (optional)
     if infisical_id:
-        for env in ("production", "staging"):
-            await infisical.set_secrets(infisical_id, env, env_vars)
-        logger.info("Secrets stored in Infisical for %s", name)
+        try:
+            for env in ("production", "staging"):
+                await infisical.set_secrets(infisical_id, env, env_vars)
+            logger.info("Secrets stored in Infisical for %s", name)
+        except Exception as exc:
+            errors.append(f"infisical_secrets: {exc}")
+            logger.warning("Failed to store secrets in Infisical: %s", exc)
 
-    # 10. Also set ENV vars directly on Coolify apps (for runtime access)
-    for app_id in service_ids.values():
-        await coolify.set_env_vars(app_id, env_vars)
+    # 10. Set ENV vars directly on Coolify apps
+    for svc_key, app_id in service_ids.items():
+        try:
+            await coolify.set_env_vars(app_id, env_vars)
+        except Exception as exc:
+            errors.append(f"env_vars({svc_key}): {exc}")
+            logger.warning("Failed to set env vars on %s: %s", svc_key, exc)
 
     # 11. Save to registry
     record = DeploymentRecord(
@@ -175,9 +227,18 @@ async def provision_new_project(
         glitchtip_project_id=glitchtip_id,
         uptime_kuma_monitor_id=str(monitor_id) if monitor_id else None,
     )
-    await database.save_project(record)
+    try:
+        await database.save_project(record)
+    except Exception as exc:
+        errors.append(f"registry: {exc}")
+        logger.warning("Failed to save to registry: %s", exc)
 
-    return record
+    if errors:
+        logger.warning("Project %s provisioned with %d errors: %s", name, len(errors), errors)
+    else:
+        logger.info("Project %s provisioned successfully", name)
+
+    return record, errors
 
 
 @app.get("/health")
