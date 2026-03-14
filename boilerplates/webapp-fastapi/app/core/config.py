@@ -36,10 +36,14 @@ class Settings(BaseSettings):
     # Access via settings.get_feature_flag("flag_name")
 
     # --- Database ---
-    DATABASE_URL: str = "postgresql://toolbox:password@postgres:5432/toolbox"
+    DATABASE_URL: str = "postgresql://app:app@postgres:5432/app"
 
     # --- Redis ---
     REDIS_URL: str = "redis://:password@redis:6379/0"
+
+    # --- Auth (JWT) ---
+    JWT_SECRET: str = ""  # Empty = dev bypass (accepts all requests)
+    JWT_ALGORITHM: str = "HS256"
 
     # --- CORS ---
     CORS_ORIGINS: str = '["http://localhost:3000"]'

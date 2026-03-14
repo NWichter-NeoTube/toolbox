@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.items import router as items_router
 from app.api.routes import router as api_router
 from app.core.analytics import shutdown as analytics_shutdown
 from app.core.config import settings
@@ -21,17 +22,15 @@ if TYPE_CHECKING:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Manage application startup and shutdown lifecycle.
+    """Manage application startup and shutdown lifecycle."""
+    from app.core.database import engine
 
-    Startup: no external clients to initialize (Umami is stateless HTTP,
-    feature flags are ENV-based).
-    Shutdown: close the async HTTP client used for analytics.
-    """
     # --- Startup ---
     yield
 
     # --- Shutdown ---
     await analytics_shutdown()
+    await engine.dispose()
 
 
 def create_app() -> FastAPI:
@@ -62,6 +61,7 @@ def create_app() -> FastAPI:
 
     # --- Routes ---
     app.include_router(api_router)
+    app.include_router(items_router)
 
     @app.get("/health", tags=["infra"])
     async def health() -> dict[str, str]:
