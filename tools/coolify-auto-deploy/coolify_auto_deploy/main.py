@@ -79,13 +79,13 @@ async def github_webhook(request: Request):
 async def fetch_config(repo: str, branch: str) -> CoolifyConfig | None:
     """Fetch and parse coolify-config.json from GitHub repo."""
     try:
+        headers = {"Accept": "application/vnd.github.v3.raw"}
+        if settings.github_token:
+            headers["Authorization"] = f"token {settings.github_token}"
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
                 f"https://api.github.com/repos/{repo}/contents/coolify-config.json?ref={branch}",
-                headers={
-                    "Authorization": f"token {settings.github_token}",
-                    "Accept": "application/vnd.github.v3.raw",
-                },
+                headers=headers,
             )
             if resp.status_code != 200:
                 return None
