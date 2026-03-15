@@ -1,36 +1,35 @@
 # ---------------------------------------------------------------------------
-# Stage 1 — Build: install Python dependencies into a virtual environment
+# Stage 1 — Build: install Python dependencies via uv
 # ---------------------------------------------------------------------------
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /build
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock* ./
 
-# Install build tooling and project dependencies.
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir hatchling \
-    && pip install --no-cache-dir .
+RUN uv sync --frozen --no-dev
 
 # ---------------------------------------------------------------------------
 # Stage 2 — Runtime: lean image with only what is needed to run the app
 # ---------------------------------------------------------------------------
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
-# Prevent Python from writing .pyc files and enable unbuffered output.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Copy installed packages from the builder stage.
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy virtual environment from builder
+COPY --from=builder /build/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Copy application source code.
+# Copy application source code
 COPY app/ ./app/
+COPY alembic.ini ./
+COPY migrations/ ./migrations/
 
-# Create a non-root user for runtime.
+# Create a non-root user for runtime
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app
 
