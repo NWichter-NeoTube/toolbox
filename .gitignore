@@ -29,3 +29,7 @@ pr-comments/
 *.tmp
 *.bak
 *.log
+
+# Deployment scripts with credentials
+scripts/deploy-*.py
+scripts/.credentials-generated.json

@@ -1,0 +1,80 @@
+name: Validate Boilerplates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'boilerplates/**'
+      - 'tools/coolify-auto-deploy/**'
+  pull_request:
+    paths:
+      - 'boilerplates/**'
+
+jobs:
+  validate-dockerfiles:
+    name: Build Boilerplate Dockerfiles
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        boilerplate:
+          - name: website-astro
+            context: boilerplates/website-astro
+          - name: webapp-fastapi
+            context: boilerplates/webapp-fastapi
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Dockerfile exists
+        run: |
+          if [ ! -f "${{ matrix.boilerplate.context }}/Dockerfile" ]; then
+            echo "No Dockerfile in ${{ matrix.boilerplate.context }}, skipping build test"
+            echo "SKIP=true" >> $GITHUB_ENV
+          fi
+
+      - name: Build Docker image (dry-run)
+        if: env.SKIP != 'true'
+        run: |
+          docker build --no-cache \
+            -t test-${{ matrix.boilerplate.name }}:ci \
+            ${{ matrix.boilerplate.context }}
+
+  validate-configs:
+    name: Validate coolify-config.json Schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate all coolify-config.json files
+        run: |
+          found=0
+          for config in $(find . -name "coolify-config.json" -not -path "./node_modules/*"); do
+            echo "Validating: $config"
+            python tools/coolify-auto-deploy/scripts/validate-config.py "$config"
+            found=$((found + 1))
+          done
+          echo "Validated $found config files"
+
+  auto-deploy-tests:
+    name: Auto-Deploy Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          cd tools/coolify-auto-deploy
+          pip install -e ".[dev]" 2>/dev/null || pip install -e .
+          pip install pytest
+
+      - name: Run unit tests (skip integration)
+        run: |
+          cd tools/coolify-auto-deploy
+          python -m pytest tests/test_unit.py -v

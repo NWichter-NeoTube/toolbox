@@ -1,7 +1,9 @@
 """FastAPI webhook receiver for auto-deployment."""
+import asyncio
 import hashlib
 import hmac
 import logging
+import time
 
 from fastapi import FastAPI, Request, HTTPException
 import httpx
@@ -11,8 +13,12 @@ from .models import CoolifyConfig, DeploymentRecord
 from . import coolify, database, infisical, umami, glitchtip, uptime_kuma
 
 logger = logging.getLogger(__name__)
-app = FastAPI(title="Coolify Auto-Deploy")
+app = FastAPI(title="Coolify Auto-Deploy", version="0.2.0")
 
+
+# ---------------------------------------------------------------------------
+# Startup
+# ---------------------------------------------------------------------------
 
 @app.on_event("startup")
 async def startup() -> None:
@@ -23,11 +29,23 @@ async def startup() -> None:
     except Exception:
         logger.exception("Failed to initialize registry database")
 
+    # Initialize deploy_log table
+    try:
+        from . import deploy_log
+        await deploy_log.init_table()
+        logger.info("Deploy log table initialized")
+    except Exception:
+        logger.exception("Failed to initialize deploy log table")
+
+
+# ---------------------------------------------------------------------------
+# Signature verification
+# ---------------------------------------------------------------------------
 
 def verify_signature(payload: bytes, signature: str) -> bool:
     """Verify GitHub webhook signature."""
     if not settings.github_webhook_secret:
-        return True  # Skip verification if no secret configured
+        return True
     expected = "sha256=" + hmac.new(
         settings.github_webhook_secret.encode(),
         payload,
@@ -35,6 +53,10 @@ def verify_signature(payload: bytes, signature: str) -> bool:
     ).hexdigest()
     return hmac.compare_digest(expected, signature)
 
+
+# ---------------------------------------------------------------------------
+# Webhook endpoint
+# ---------------------------------------------------------------------------
 
 @app.post("/webhook/github")
 async def github_webhook(request: Request):
@@ -46,12 +68,15 @@ async def github_webhook(request: Request):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
     event = request.headers.get("X-GitHub-Event")
+    if event == "ping":
+        return {"status": "pong"}
     if event != "push":
         return {"status": "ignored", "reason": f"event type: {event}"}
 
     payload = await request.json()
     repo_full_name = payload.get("repository", {}).get("full_name", "")
     branch = payload.get("ref", "").replace("refs/heads/", "")
+    commit_sha = payload.get("after", "")
 
     if branch not in ("main", "staging"):
         return {"status": "ignored", "reason": f"branch: {branch}"}
@@ -64,6 +89,7 @@ async def github_webhook(request: Request):
     project_name = repo_full_name.split("/")[-1]
     env = "production" if branch == "main" else "staging"
 
+    start_time = time.monotonic()
     errors: list[str] = []
 
     # Check if project already exists in registry
@@ -74,20 +100,93 @@ async def github_webhook(request: Request):
             project_name, repo_full_name, config
         )
 
-    # Deploy the appropriate environment
+    # Deploy the appropriate environment (with retry)
+    deploy_uuids = []
     try:
-        await coolify.deploy_environment(record, env)
+        deploy_uuids = await deploy_with_retry(record, env)
     except Exception as exc:
         errors.append(f"deploy: {exc}")
         logger.exception("Failed to deploy %s (%s)", project_name, env)
 
+    duration_ms = int((time.monotonic() - start_time) * 1000)
+    status = "deployed" if not errors else "partial"
+
+    # Log deployment
+    try:
+        from . import deploy_log
+        await deploy_log.log_deployment(
+            project_name=project_name,
+            environment=env,
+            status=status,
+            github_sha=commit_sha,
+            errors=errors,
+            coolify_deployment_uuids=deploy_uuids,
+            duration_ms=duration_ms,
+        )
+    except Exception:
+        logger.warning("Failed to log deployment")
+
+    # Send notification
+    try:
+        from . import notifications
+        domains = [
+            coolify.get_domain(record.project_name, svc.split("_")[0], env, settings.base_domain)
+            for svc in record.services
+            if svc.endswith(f"_{env}")
+        ]
+        await notifications.notify(
+            project=project_name,
+            environment=env,
+            status=status,
+            errors=errors,
+            domains=domains,
+        )
+    except Exception:
+        logger.warning("Failed to send notification")
+
     return {
-        "status": "deployed" if not errors else "partial",
+        "status": status,
         "project": project_name,
         "environment": env,
+        "duration_ms": duration_ms,
         "errors": errors,
+        "deployments": deploy_uuids,
     }
 
+
+# ---------------------------------------------------------------------------
+# Deploy with retry
+# ---------------------------------------------------------------------------
+
+async def deploy_with_retry(
+    record: DeploymentRecord, env: str
+) -> list[str]:
+    """Deploy with configurable retry. Returns list of deployment UUIDs."""
+    last_error = None
+    for attempt in range(1 + settings.deploy_retry_count):
+        try:
+            uuids = await coolify.deploy_environment(record, env)
+            if attempt > 0:
+                logger.info(
+                    "Deploy succeeded on attempt %d for %s (%s)",
+                    attempt + 1, record.project_name, env,
+                )
+            return uuids
+        except Exception as exc:
+            last_error = exc
+            if attempt < settings.deploy_retry_count:
+                logger.warning(
+                    "Deploy attempt %d failed for %s (%s): %s. Retrying in %ds...",
+                    attempt + 1, record.project_name, env, exc,
+                    settings.deploy_retry_delay_seconds,
+                )
+                await asyncio.sleep(settings.deploy_retry_delay_seconds)
+    raise last_error
+
+
+# ---------------------------------------------------------------------------
+# Config fetching
+# ---------------------------------------------------------------------------
 
 async def fetch_config(repo: str, branch: str) -> CoolifyConfig | None:
     """Fetch and parse coolify-config.json from GitHub repo."""
@@ -108,19 +207,23 @@ async def fetch_config(repo: str, branch: str) -> CoolifyConfig | None:
         return None
 
 
+# ---------------------------------------------------------------------------
+# Provisioning
+# ---------------------------------------------------------------------------
+
 async def provision_new_project(
     name: str, repo: str, config: CoolifyConfig
 ) -> tuple[DeploymentRecord, list[str]]:
     """Provision a complete new project with all services.
 
-    Returns (record, errors) — errors is a list of non-fatal issues that
-    occurred during provisioning. The Coolify project + applications are
-    the only hard requirements; everything else is best-effort.
+    Returns (record, errors) -- errors is a list of non-fatal issues.
+    The Coolify project + applications are the only hard requirements;
+    everything else is best-effort.
     """
     logger.info("Provisioning new project: %s (%s)", name, config.type)
     errors: list[str] = []
 
-    # 1. Create Coolify project (required — fail hard if this doesn't work)
+    # 1. Create Coolify project (required)
     project_id = await coolify.create_project(name)
 
     # 2. Create Infisical project (optional)
@@ -146,7 +249,7 @@ async def provision_new_project(
             )
             service_ids[f"{svc_name}_{env}"] = app_id
 
-    # 4. Provision databases (optional — only for webapp/shop/app types)
+    # 4. Provision databases (optional)
     db_ids: dict[str, str] = {}
     if config.databases and config.databases.postgres:
         try:
@@ -233,6 +336,18 @@ async def provision_new_project(
         errors.append(f"registry: {exc}")
         logger.warning("Failed to save to registry: %s", exc)
 
+    # Send provisioning notification
+    try:
+        from . import notifications
+        await notifications.notify(
+            project=name,
+            environment="provisioning",
+            status="deployed" if not errors else "partial",
+            errors=errors,
+        )
+    except Exception:
+        pass
+
     if errors:
         logger.warning("Project %s provisioned with %d errors: %s", name, len(errors), errors)
     else:
@@ -241,7 +356,72 @@ async def provision_new_project(
     return record, errors
 
 
+# ---------------------------------------------------------------------------
+# API endpoints
+# ---------------------------------------------------------------------------
+
 @app.get("/health")
 async def health():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/status/{project_name}")
+async def project_status(project_name: str):
+    """Get project deployment status and history."""
+    record = await database.get_project(project_name)
+    if not record:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Get deployment history
+    history = []
+    try:
+        from . import deploy_log
+        history = await deploy_log.get_project_history(project_name, limit=10)
+    except Exception:
+        pass
+
+    # Build domain list
+    domains = {}
+    for svc_key in record.services:
+        parts = svc_key.rsplit("_", 1)
+        if len(parts) == 2:
+            svc_name, env = parts
+            domains[svc_key] = coolify.get_domain(
+                record.project_name, svc_name, env, settings.base_domain
+            )
+
+    return {
+        "project": record.project_name,
+        "type": record.project_type,
+        "repo": record.github_repo,
+        "services": record.services,
+        "domains": domains,
+        "databases": record.database_ids,
+        "history": history,
+    }
+
+
+@app.get("/deployments")
+async def recent_deployments(limit: int = 50):
+    """Get recent deployments across all projects."""
+    try:
+        from . import deploy_log
+        return await deploy_log.get_recent_deployments(limit=limit)
+    except Exception:
+        return []
+
+
+@app.get("/projects")
+async def list_projects():
+    """List all deployed projects."""
+    projects = await database.get_all_projects()
+    return [
+        {
+            "name": p.project_name,
+            "type": p.project_type,
+            "repo": p.github_repo,
+            "services": len(p.services),
+        }
+        for p in projects
+    ]

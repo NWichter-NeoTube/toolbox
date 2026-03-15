@@ -84,7 +84,10 @@ def deploy(repo, branch):
         record = await db.get_project(name)
         if not record:
             console.print("[yellow]New project, provisioning...[/yellow]")
-            record = await provision_new_project(name, repo, config)
+            record, prov_errors = await provision_new_project(name, repo, config)
+            if prov_errors:
+                for err in prov_errors:
+                    console.print(f"[yellow]Warning: {err}[/yellow]")
 
         env = "production" if branch == "main" else "staging"
         await coolify_mod.deploy_environment(record, env)

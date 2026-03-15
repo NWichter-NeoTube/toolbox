@@ -215,25 +215,43 @@ async def create_database(project_name: str, project_id: str) -> str:
 # Deployment
 # ---------------------------------------------------------------------------
 
-async def deploy_application(app_id: str) -> None:
-    """Trigger a deployment for a single application."""
+async def deploy_application(app_id: str) -> str | None:
+    """Trigger a deployment for a single application. Returns deployment UUID."""
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        resp = await client.post(
-            _api(f"/applications/{app_id}/start"),
+        resp = await client.get(
+            _api(f"/deploy?uuid={app_id}"),
             headers=_headers(),
         )
         resp.raise_for_status()
-        logger.info("Triggered deployment for application %s", app_id)
+        data = resp.json()
+        deployments = data.get("deployments", [])
+        deploy_uuid = deployments[0].get("deployment_uuid") if deployments else None
+        logger.info("Triggered deployment for %s -> %s", app_id, deploy_uuid)
+        return deploy_uuid
 
 
-async def deploy_environment(record: DeploymentRecord, env: str) -> None:
-    """Deploy all services for a given environment (production or staging)."""
+async def get_deployment_status(deployment_uuid: str) -> str:
+    """Get the status of a specific deployment."""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        resp = await client.get(
+            _api(f"/deployments/{deployment_uuid}"),
+            headers=_headers(),
+        )
+        resp.raise_for_status()
+        return resp.json().get("status", "unknown")
+
+
+async def deploy_environment(record: DeploymentRecord, env: str) -> list[str]:
+    """Deploy all services for a given environment. Returns deployment UUIDs."""
     suffix = f"_{env}"
-    deployed = 0
+    deploy_uuids: list[str] = []
     for svc_key, app_id in record.services.items():
         if svc_key.endswith(suffix):
-            await deploy_application(app_id)
-            deployed += 1
+            uuid = await deploy_application(app_id)
+            if uuid:
+                deploy_uuids.append(uuid)
     logger.info(
-        "Deployed %d service(s) for %s (%s)", deployed, record.project_name, env
+        "Deployed %d service(s) for %s (%s)",
+        len(deploy_uuids), record.project_name, env,
     )
+    return deploy_uuids

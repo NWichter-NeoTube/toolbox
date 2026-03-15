@@ -34,9 +34,22 @@ class Settings(BaseSettings):
     infisical_api_token: str = ""
     infisical_workspace_id: str = ""
 
-    # Uptime Kuma
+    # Uptime Kuma (Socket.IO auth)
     uptime_kuma_url: str = "https://health.sorevo.de"
-    uptime_kuma_api_token: str = ""
+    uptime_kuma_username: str = ""
+    uptime_kuma_password: str = ""
+
+    # Notifications (ntfy)
+    ntfy_url: str = "https://push.sorevo.de"
+    ntfy_topic: str = ""
+    ntfy_token: str = ""
+
+    # GitHub org (for webhook setup)
+    github_org: str = "NeoTubeX"
+
+    # Deployment settings
+    deploy_retry_count: int = 1
+    deploy_retry_delay_seconds: int = 60
 
     # Server
     host: str = "0.0.0.0"
