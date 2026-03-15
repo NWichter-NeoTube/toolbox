@@ -9,10 +9,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, BackgroundTasks, Header
 from pydantic import BaseModel
 
 from app.core.analytics import track_event
+from app.core.background import log_event, send_email
 from app.core.error_tracking import capture_exception, capture_message
 from app.core.feature_flags import get_all_flags, is_enabled
 
@@ -75,9 +76,14 @@ async def status() -> StatusResponse:
 @router.post("/events", response_model=EventResponse)
 async def ingest_event(
     payload: EventPayload,
+    background_tasks: BackgroundTasks,
     x_consent: str = Header(default=""),
 ) -> EventResponse:
-    """Ingest a custom analytics event and forward it to Umami."""
+    """Ingest a custom analytics event and forward it to Umami.
+
+    Demonstrates BackgroundTasks: the event is logged asynchronously
+    after the response is sent, so the client doesn't wait.
+    """
     consent_given = x_consent.lower() == "granted"
 
     await track_event(
@@ -86,7 +92,9 @@ async def ingest_event(
         consent_given=consent_given,
     )
 
-    # Also send a breadcrumb to GlitchTip for traceability.
+    # Background: log event + send notification (non-blocking)
+    background_tasks.add_task(log_event, payload.event, payload.properties)
+
     capture_message(f"Event ingested: {payload.event}", level="info")
 
     return EventResponse(accepted=True, event=payload.event)

@@ -13,6 +13,7 @@ from app.api.routes import router as api_router
 from app.core.analytics import shutdown as analytics_shutdown
 from app.core.config import settings
 from app.core.error_tracking import init_error_tracking
+from app.core.logging import get_logger, setup_logging
 from app.middleware.analytics import AnalyticsMiddleware
 from app.middleware.request_id import RequestIDMiddleware
 
@@ -33,8 +34,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await engine.dispose()
 
 
+logger = get_logger(__name__)
+
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    setup_logging()
+    logger.info("Starting application")
+
     init_error_tracking(
         dsn=settings.GLITCHTIP_DSN,
         environment="development" if settings.DEBUG else "production",
